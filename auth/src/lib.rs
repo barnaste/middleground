@@ -7,36 +7,38 @@
 use axum::{
     extract::{Json, rejection::JsonRejection},
     http::StatusCode,
+    response::IntoResponse,
 };
 use serde_json::Value;
+use validator::ValidateEmail;
 
-pub async fn register(payload: Result<Json<Value>, JsonRejection>) -> StatusCode {
-    // here, Value should have the two entries email: and passcode:
-    // passcode is expected to already be hashed by the frontend
-    match payload {
-        Ok(Json(payload)) => {
-            // valid JSON payload -- main service logic goes here!
-            StatusCode::CREATED
-        }
-        Err(JsonRejection::MissingJsonContentType(_)) => {
-            // request didn't have `Content-Type: application/json` header
-            StatusCode::BAD_REQUEST
-        }
-        Err(JsonRejection::JsonDataError(_)) => {
-            // couldn't deserialize body into target type
-            StatusCode::BAD_REQUEST
-        }
-        Err(JsonRejection::JsonSyntaxError(_)) => {
-            // syntax error in the body
-            StatusCode::BAD_REQUEST
-        }
-        Err(JsonRejection::BytesRejection(_)) => {
-            // failed to extract the request body
-            StatusCode::BAD_REQUEST
-        }
-        Err(_) => {
-            // `JsonRejection` is non-exhaustive, so must include a catch-all
-            StatusCode::BAD_REQUEST
-        }
+// note that passcode is expected to already be hashed by the frontend
+pub async fn register(
+    payload: Result<Json<Value>, JsonRejection>,
+) -> Result<StatusCode, impl IntoResponse> {
+    // if this fails, the JSON data given does not contain an object
+    let Json(payload) = payload.map_err(|_| StatusCode::BAD_REQUEST)?;
+
+    // extract JSON object from the payload
+    let map = payload.as_object().ok_or(StatusCode::BAD_REQUEST)?;
+
+    // extract email and passcode
+    let email = map
+        .get("email")
+        .and_then(|s| s.as_str())
+        .ok_or_else(|| StatusCode::BAD_REQUEST)?;
+    let passcode = map
+        .get("passcode")
+        .and_then(|s| s.as_str())
+        .ok_or_else(|| StatusCode::BAD_REQUEST)?;
+    
+    // ensure email is of correct format
+    if !email.validate_email() {
+        return Err(StatusCode::BAD_REQUEST);
     }
+
+    // check to see if information we received is correct
+    println!("Email: {}, Passcode: {}", email, passcode);
+
+    Ok(StatusCode::CREATED)
 }
