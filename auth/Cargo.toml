@@ -1,0 +1,11 @@
+[package]
+name = "auth"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+serde.workspace = true
+serde_json.workspace = true

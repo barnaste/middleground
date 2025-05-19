@@ -5,5 +5,6 @@ version.workspace = true
 authors.workspace = true
 
 [dependencies]
-chrono = "0.4.41"
-uuid = "1.16.0"
+serde.workspace = true
+uuid.workspace = true
+chrono.workspace = true

@@ -1,6 +1,8 @@
 [workspace]
 resolver = "2"
 members = [
+	"api_gateway",
+	"auth", 
 	"entity"
 ]
 
@@ -8,3 +10,11 @@ members = [
 version = "0.1.0"
 authors = []
 # documentation = ""
+
+[workspace.dependencies]
+axum = "0.8.4"
+tokio = { version = "1.45.0", features = ["full"] }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+uuid = { version = "1.16.0", features = ["v4", "serde"] }
+chrono = { version = "0.4.41", features = ["serde"] }

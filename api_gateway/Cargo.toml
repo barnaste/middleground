@@ -1,0 +1,11 @@
+[package]
+name = "api_gateway"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+
+auth = { path = "../auth" }
