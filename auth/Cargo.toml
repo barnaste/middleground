@@ -7,6 +7,7 @@ authors.workspace = true
 [dependencies]
 axum.workspace = true
 tokio.workspace = true
+tower-sessions.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 validator.workspace = true
