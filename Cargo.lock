@@ -47,7 +47,6 @@ version = "0.1.0"
 dependencies = [
  "auth",
  "axum",
- "serde",
  "tokio",
  "tower 0.4.13",
  "tower-sessions",

@@ -1,9 +1,7 @@
-// TODO: register(), verify_email(), resend_verification(), login(), logout()
-
 // NOTE: USEFUL EXTRACTORS
-//       Path, Query<HashMap<String, String>>, OriginalUri, Json (consumes body), HeaderMap (all headers)
+//       Path, Query<HashMap<String, String>>
 
-use crate::layer::AuthStatus;
+use crate::middleware::AuthStatus;
 use axum::{
     extract::{Json, rejection::JsonRejection},
     http::StatusCode,
@@ -12,6 +10,9 @@ use axum::{
 use serde_json::Value;
 use tower_sessions::Session;
 use validator::ValidateEmail;
+
+pub const EMAIL_SESSION_KEY: &str = "email";
+pub const PASSCODE_SESSION_KEY: &str = "passcode";
 
 // note that passcode is expected to already be hashed by the frontend (maybe use argon2?)
 pub async fn register(
@@ -26,11 +27,11 @@ pub async fn register(
 
     // extract email and passcode
     let email = map
-        .get("email")
+        .get(EMAIL_SESSION_KEY)
         .and_then(|s| s.as_str())
         .ok_or_else(|| StatusCode::BAD_REQUEST)?;
     let passcode = map
-        .get("passcode")
+        .get(PASSCODE_SESSION_KEY)
         .and_then(|s| s.as_str())
         .ok_or_else(|| StatusCode::BAD_REQUEST)?;
 
@@ -42,11 +43,11 @@ pub async fn register(
     // check that email is not already in use; return 409 Conflict if it does
 
     // insert new user record (later: need database)
-    let user_id = 142857;            // temporary -- should be safely generated
+    let user_id = 142857; // temporary -- should be safely generated
 
     // initialize default user profile (later: need to design preferences interface)
     // generate verification code
-    let verification_code = 123456;   // temporary -- should be safely generated
+    let verification_code = 123456; // temporary -- should be safely generated
 
     // store user_id and authentication details in session
     session
@@ -59,9 +60,6 @@ pub async fn register(
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // request email verification via notifs (later: need notifications interface)
-
-    // check to see if information we received is correct
-    println!("Email: {}, Passcode: {}", email, passcode);
 
     Ok(StatusCode::CREATED)
 }

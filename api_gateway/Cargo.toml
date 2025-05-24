@@ -6,7 +6,6 @@ authors.workspace = true
 
 [dependencies]
 axum.workspace = true
-serde.workspace=true # TEMP
 tokio.workspace = true
 tower.workspace = true
 tower-sessions.workspace = true
