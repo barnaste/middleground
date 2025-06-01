@@ -4,7 +4,7 @@ members = [
 	"api_gateway",
 	"auth", 
 	"entity"
-]
+, "matchmaking"]
 
 [workspace.package]
 version = "0.1.0"
