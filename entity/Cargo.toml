@@ -8,3 +8,4 @@ authors.workspace = true
 serde.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+regex = "1.11.1"
