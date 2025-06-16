@@ -4,15 +4,13 @@
 
 use axum::Router;
 use std::net::SocketAddr;
-use tower_sessions::MemoryStore;
+
+// TODO: setup state (1. auth client; 2. database)
 
 /// Creates the main application router with all middleware and route configurations
 fn create_router() -> Router {
     Router::new()
         .nest("/auth", auth::router())
-        .layer(auth::middleware::create_session_layer(
-            MemoryStore::default(),
-        ))
     // TODO: rate limiting
 }
 

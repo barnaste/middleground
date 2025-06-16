@@ -8,6 +8,5 @@ authors.workspace = true
 axum.workspace = true
 tokio.workspace = true
 tower.workspace = true
-tower-sessions.workspace = true
 
 auth = { path = "../auth" }
