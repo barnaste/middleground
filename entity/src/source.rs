@@ -47,6 +47,7 @@ pub struct BookInfo {
 }
 
 /// A source publication date consisting of a year, month, and day
+#[derive(PartialEq)]
 #[derive(Debug)]
 pub struct PublicationDate {
     pub year: Option<u16>,
@@ -63,6 +64,42 @@ impl Source {
             created_by: Uuid::nil(), // TODO: fetch user uuid
             credibility: 0.0, // TODO: implement credibility
             source_info
+        }
+    }
+}
+
+impl PublicationDate {
+    // Return an empty PublicationDate object
+    fn nil() -> PublicationDate {
+        PublicationDate {
+            year: None, month: None, day: None
+        }
+    }
+
+    // Convert a string of the form '[yyyy][-mm][-dd]' to a PublicationDate object (here, square brackets
+    // mean optional, with the additional rule that if one part is omitted, so must everything to its right).
+    // Returns an PublicationDate::nil() if the string is incorrectly formatted.
+    // This method serves as a helper for PublicationDate's custom Deserializer.
+    fn parse_ymd_string(str: &str) -> PublicationDate {
+        let re = Regex::new(r"^(?<y>[0-9]{4})?(-(?<m>[0-9]{2}))?(-(?<d>[0-9]{2}))?$").unwrap();
+
+        if let Some(cap) = re.captures_iter(str).last() {
+            let mut year = None;
+            let mut month = None;
+            let mut day = None;
+
+            if let Some(year_match) = cap.name("y") {
+                year = Some(year_match.as_str().parse().unwrap());
+            }
+            if let Some(month_match) = cap.name("m") {
+                month = Some(month_match.as_str().parse().unwrap());
+            }
+            if let Some(day_match) = cap.name("d") {
+                day = Some(day_match.as_str().parse().unwrap());
+            }
+            PublicationDate { year, month, day }
+        } else {
+            PublicationDate::nil()
         }
     }
 }
@@ -86,29 +123,54 @@ impl<'de> Deserialize<'de> for PublicationDate {
             where
                 E: de::Error,
             {
-                let re = Regex::new(r"^(?<y>[0-9]{4})?(-(?<m>[0-9]{2}))?(-(?<d>[0-9]{2}))?$").unwrap();
-
-                if let Some(cap) = re.captures_iter(value).last() {
-                    let mut year = None;
-                    let mut month = None;
-                    let mut day = None;
-
-                    if let Some(year_match) = cap.name("y") {
-                        year = Some(year_match.as_str().parse().unwrap());
-                    }
-                    if let Some(month_match) = cap.name("m") {
-                        month = Some(month_match.as_str().parse().unwrap());
-                    }
-                    if let Some(day_match) = cap.name("d") {
-                        day = Some(day_match.as_str().parse().unwrap());
-                    }
-                    Ok(PublicationDate { year, month, day })
-                } else {
-                    Err(E::custom(format!("date string format incorrect: {}", value)))
-                }
+                Ok(PublicationDate::parse_ymd_string(value))
             }
         }
         
         deserializer.deserialize_string(DateVisitor)
+    }
+}
+
+// Unit tests for PublicationDate::parse_ymd_string
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_ymd_string_ymd() {
+        let input = "2005-03-14";
+        let expected = PublicationDate {
+            year: Some(2005), month: Some(3), day: Some(14)
+        };
+        let result = PublicationDate::parse_ymd_string(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_parse_ymd_string_ym() {
+        let input = "2005-03";
+        let expected = PublicationDate {
+            year: Some(2005), month: Some(3), day: None
+        };
+        let result = PublicationDate::parse_ymd_string(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_parse_ymd_string_y() {
+        let input = "2005";
+        let expected = PublicationDate {
+            year: Some(2005), month: None, day: None
+        };
+        let result = PublicationDate::parse_ymd_string(input);
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn test_parse_ymd_string_nil() {
+        let input = "";
+        let expected = PublicationDate::nil();
+        let result = PublicationDate::parse_ymd_string(input);
+        assert_eq!(result, expected);
     }
 }
