@@ -13,6 +13,7 @@ pub struct Source {
     pub created_by: Uuid,
     pub credibility: f32,
     pub source_info: SourceInfo,
+    pub notes: String,
 }
 
 /// Details about a particular website or a list of book matches
@@ -23,10 +24,9 @@ pub enum SourceInfo {
 }
 
 /// Details about a particular website
-#[derive(Deserialize)]
-#[derive(Debug)]
+#[derive(Deserialize, Debug)]
 pub struct WebsiteInfo {
-    pub url: Option<String>,
+    pub url: String,
     pub title: Option<String>,
     pub authors: Option<Vec<String>>,
     pub publisher: Option<String>,
@@ -35,10 +35,9 @@ pub struct WebsiteInfo {
 }
 
 /// Details about a particular book
-#[derive(Deserialize)]
-#[derive(Debug)]
+#[derive(Deserialize, Debug)]
 pub struct BookInfo {
-    pub title: Option<String>,
+    pub title: String,
     pub authors: Option<Vec<String>>,
     pub publisher: Option<String>,
     pub date: PublicationDate,
@@ -47,8 +46,7 @@ pub struct BookInfo {
 }
 
 /// A source publication date consisting of a year, month, and day
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(PartialEq, Debug)]
 pub struct PublicationDate {
     pub year: Option<u16>,
     pub month: Option<u8>,
@@ -63,7 +61,8 @@ impl Source {
             created_at: Utc::now(),
             created_by: Uuid::nil(), // TODO: fetch user uuid
             credibility: 0.0, // TODO: implement credibility
-            source_info
+            source_info,
+            notes: String::new(),
         }
     }
 }
