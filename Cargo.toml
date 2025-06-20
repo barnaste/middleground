@@ -3,7 +3,8 @@ resolver = "2"
 members = [
 	"api_gateway",
 	"auth", 
-	"entity"
+	"entity",
+  "shared"
 ]
 
 [workspace.package]
@@ -17,5 +18,6 @@ tokio = { version = "1.45.0", features = ["full"] }
 tower = { version = "0.4", features = ["full"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
+sqlx = { version = "0.8.6", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid"]}
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
 chrono = { version = "0.4.41", features = ["serde"] }
