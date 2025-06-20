@@ -2,7 +2,7 @@ use axum::Router;
 
 mod dto;
 mod handlers;
-mod auth_manager;
+mod managers;
 pub mod middleware;
 
 pub fn router() -> Router {

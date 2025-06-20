@@ -1,8 +1,5 @@
 use async_trait::async_trait;
 
-// TODO: where do you REALLY need pub modifiers...
-mod sb_manager;
-
 /// A trait that enables access to key JWT-based auth values, namely the access
 /// and refresh tokens, as well as the access token expiration time.
 /// Meant to be used for types returned by the database and/or supplementary

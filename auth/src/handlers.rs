@@ -1,5 +1,5 @@
 use crate::dto::*;
-use crate::auth_manager::AuthManager;
+use crate::managers::AuthManager;
 
 use axum::{
     Json,
@@ -8,22 +8,6 @@ use axum::{
     response::ErrorResponse,
 };
 use supabase_auth::models::{AuthClient, Session};
-
-// -----------------
-//      HELPERS
-// -----------------
-
-// TODO: if you plan on keeping this function, make it Session -> AuthSession
-
-/// Convert a Session to a returnable AuthResponse.
-/// This will consume the Session.
-fn session_to_auth_response(session: Session) -> AuthResponse {
-    AuthResponse {
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-        expires_at: session.expires_at,
-    }
-}
 
 // -----------------
 //     ENDPOINTS
