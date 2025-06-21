@@ -44,6 +44,7 @@ version = "0.1.0"
 dependencies = [
  "auth",
  "axum",
+ "dotenvy",
  "tokio",
  "tower 0.4.13",
 ]

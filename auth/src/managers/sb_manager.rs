@@ -21,8 +21,8 @@ impl AuthSession for sb_models::Session {
 // ------------------
 
 #[derive(Clone)]
-struct SbManager {
-    client: sb_models::AuthClient,
+pub struct SbManager {
+    pub client: sb_models::AuthClient,
 }
 
 #[async_trait]
@@ -31,7 +31,10 @@ impl AuthManager for SbManager {
     type Session = sb_models::Session;
 
     async fn send_otp(&self, email: &str) -> Result<(), Self::Error> {
-        self.client.send_email_with_otp(email, None)
+        self.client
+            .send_email_with_otp(email, None)
+            .await
+            .map(|_| ())
     }
 
     async fn verify_otp(&self, email: &str, token: &str) -> Result<Self::Session, Self::Error> {
@@ -43,14 +46,16 @@ impl AuthManager for SbManager {
         };
         self.client
             .verify_otp(sb_models::VerifyOtpParams::Email(params))
+            .await
     }
 
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error> {
         self.client
             .logout(Some(sb_models::LogoutScope::Global), &bearer_token)
+            .await
     }
     
     async fn refresh_token(&self, refresh_token: &str) -> Result<Self::Session, Self::Error> {
-        self.client.refresh_session(refresh_token)
+        self.client.refresh_session(refresh_token).await
     }
 }

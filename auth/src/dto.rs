@@ -1,6 +1,5 @@
 /// Data Transfer Objects
-use crate::auth_manager;
-
+use crate::managers::AuthSession;
 use serde::{Deserialize, Serialize};
 
 // TODO: consider what really deserves to be public...
@@ -31,7 +30,7 @@ pub struct AuthResponse {
     pub expires_at: u64,
 }
 
-impl<S: auth_manager::AuthSession> From<S> for AuthResponse {
+impl<S: AuthSession> From<S> for AuthResponse {
     fn from(value: S) -> Self {
         AuthResponse {
             access_token: value.access_token().to_string(),

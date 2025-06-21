@@ -25,4 +25,3 @@ pub trait AuthManager: Clone + Send + Sync + 'static {
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error>;
     async fn refresh_token(&self, refresh_token: &str) -> Result<Self::Session, Self::Error>;
 }
-

@@ -5,8 +5,6 @@
 use axum::Router;
 use std::net::SocketAddr;
 
-// TODO: setup state (1. auth client; 2. database)
-
 /// Creates the main application router with all middleware and route configurations
 fn create_router() -> Router {
     Router::new()
@@ -17,6 +15,9 @@ fn create_router() -> Router {
 // TODO: set up HTTPS (TLS) secure communication; read rustls, tokio_rustls docs
 #[tokio::main]
 async fn main() {
+    // load .env file
+    dotenvy::dotenv().expect("Unable to find .env file");
+
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 

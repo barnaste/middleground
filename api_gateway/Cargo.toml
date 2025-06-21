@@ -10,3 +10,4 @@ tokio.workspace = true
 tower.workspace = true
 
 auth = { path = "../auth" }
+dotenvy = "0.15.7"
