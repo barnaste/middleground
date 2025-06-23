@@ -16,4 +16,5 @@ pub struct User {
     pub status: AccountStatus,
     pub created_at: DateTime<Utc>,
     pub last_login: DateTime<Utc>,
+    pub rating: f32,
 }
