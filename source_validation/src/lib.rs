@@ -1,7 +1,5 @@
-use source::{Source, SourceInfo, WebsiteInfo, BookInfo};
+use entity::source::{Source, SourceInfo, WebsiteInfo, BookInfo};
 use std::error::Error;
-
-pub mod source;
 
 // Extract source info from a website URL using the Bibify API.
 async fn extract_source_url(url: &str) -> Result<Source, Box<dyn Error>> {
@@ -44,7 +42,7 @@ async fn extract_source_book(name: &str) -> Result<Source, Box<dyn Error>> {
         .text()
         .await?;
 
-    let book_info = serde_json::from_str(&response)?;
+    let book_info: Vec<BookInfo> = serde_json::from_str(&response)?;
     let source_info = SourceInfo::Book(book_info);
     let source = Source::new(source_info);
 

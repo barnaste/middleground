@@ -1,7 +1,10 @@
 [package]
-name = "matchmaking"
+name = "source_validation"
 edition = "2024"
 version.workspace = true
 authors.workspace = true
 
 [dependencies]
+entity = { path = "../entity"}
+reqwest = { version = "0.12.20", features = ["json"] }
+serde_json.workspace = true

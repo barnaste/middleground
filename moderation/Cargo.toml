@@ -1,0 +1,8 @@
+[package]
+name = "moderation"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+entity = { path = "../entity"}

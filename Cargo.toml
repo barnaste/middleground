@@ -3,8 +3,8 @@ resolver = "2"
 members = [
 	"api_gateway",
 	"auth", 
-	"entity"
-]
+	"entity",
+	"moderation", "source_validation"]
 
 [workspace.package]
 version = "0.1.0"
@@ -19,5 +19,5 @@ tower-sessions = "0.14.0"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
 uuid = { version = "1.16.0", features = ["v4", "serde"] }
-chrono = { version = "0.4.41", features = ["serde"] }
+chrono = { version = "0.4.41", features = ["now", "serde"] }
 validator = "0.20.0"
