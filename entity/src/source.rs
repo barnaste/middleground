@@ -68,17 +68,17 @@ impl Source {
 }
 
 impl PublicationDate {
-    // Return an empty PublicationDate object
+    /// Return an empty PublicationDate object
     fn nil() -> PublicationDate {
         PublicationDate {
             year: None, month: None, day: None
         }
     }
 
-    // Convert a string of the form '[yyyy][-mm][-dd]' to a PublicationDate object (here, square brackets
-    // mean optional, with the additional rule that if one part is omitted, so must everything to its right).
-    // Returns an PublicationDate::nil() if the string is incorrectly formatted.
-    // This method serves as a helper for PublicationDate's custom Deserializer.
+    /// Convert a string of the form '[yyyy][-mm][-dd]' to a PublicationDate object (here, square brackets
+    /// mean optional, with the additional rule that if one part is omitted, so must everything to its right).
+    /// Returns an PublicationDate::nil() if the string is incorrectly formatted.
+    /// This method serves as a helper for PublicationDate's custom Deserializer.
     fn parse_ymd_string(str: &str) -> PublicationDate {
         let re = Regex::new(r"^(?<y>[0-9]{4})?(-(?<m>[0-9]{2}))?(-(?<d>[0-9]{2}))?$").unwrap();
 
@@ -130,7 +130,7 @@ impl<'de> Deserialize<'de> for PublicationDate {
     }
 }
 
-// Unit tests for PublicationDate::parse_ymd_string
+/// Unit tests for PublicationDate::parse_ymd_string
 #[cfg(test)]
 mod tests {
     use super::*;

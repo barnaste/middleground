@@ -1,8 +1,10 @@
+//! A source organization and validation system. Uses the Bibify public API to scrape websites and books.
+
 use entity::source::{Source, SourceInfo, WebsiteInfo, BookInfo};
 use std::error::Error;
 
-// Extract source info from a website URL using the Bibify API.
-async fn extract_source_url(url: &str) -> Result<Source, Box<dyn Error>> {
+/// Extract source info from a website URL using the Bibify API.
+pub async fn extract_source_url(url: &str) -> Result<Source, Box<dyn Error>> {
     let request_target = r#"https://api.bibify.org/api/website"#;
     let query = [("url", url)];
 
@@ -25,8 +27,8 @@ async fn extract_source_url(url: &str) -> Result<Source, Box<dyn Error>> {
     Ok(source)
 }
 
-// Extract source info from a book by its name using the Bibify API. Returns a list of matches.
-async fn extract_source_book(name: &str) -> Result<Source, Box<dyn Error>> {
+/// Extract source info from a book by its name using the Bibify API. Returns a list of matches.
+pub async fn extract_source_book(name: &str) -> Result<Source, Box<dyn Error>> {
     let request_target = r#"https://api.bibify.org/api/books"#;
     let query = [("q", name)];
 

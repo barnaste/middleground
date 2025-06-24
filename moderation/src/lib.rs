@@ -1,32 +1,26 @@
-use entity::user::User;
+//! A moderation system for users participating in a conversation. Includes basic message filtering, a rating system determined by
+//! user-assigned scores, and a strike system driven by sentiment analysis.
+//! 
+//! Outline of the moderation flow:
+//! - Two users enter a conversation
+//!     - A user sends a message, before which process_message() is called
+//!         - If process_message() detects obviously offensive language, the user is warned
+//!     - A user ends the conversation, and each user is given the option to either report their partner for bad behaviour (providing a
+//!       reason for logs), or assign them a score (-1 to 1). (Similarly, if both users are inactive for a prolonged period of time, the
+//!       conversation ends automatically.)
+//!         - Rating system updates occur through update_user_rating(), weighed by assigned scores, current user ratings, and conversation duration
+//!         - Strike system updates occur through update_user_strikes() as follows:
+//!             - If a user was reported, sentiment analysis is conducted on the whole conversation through analyze_conversation()
+//!                 - If analyze_conversation() returns a sufficiently negative score *for either user*, they receive a strike and timeout
+//!             - If a user has (or just hit) 0 rating, sentiment analysis is conducted on the whole conversation through analyze_conversation()
+//!                 - If analyze_conversation() returns a sufficiently negative score *for the 0-score user*, they receive a strike and timeout
+//!             - If a user has accumulated enough strikes, they receive a permanent (or lengthy) ban
 
-// The initial rating assigned to a new user.
-const INITIAL_SCORE: f32 = 300.0;
+pub mod rating_system;
+pub mod strike_system;
 
-// After a conversation terminates, each participant assigns the other a score 
-// between -MAX_SCORE (bad experience) and MAX_SCORE (good experience).
-const MAX_SCORE: f32 = 5.0;
-
-// The number of times a *newly-created* user can receive the *worst possible* score (-MAX_SCORE) from
-// *newly-created* partners before they reach a rating of 0 (and are considered potential bad actors).
-// Serves as a balancing factor in the update_user_rating() formula.
-const K: f32 = 3.0;
-
-fn process_message(msg: &str) {
-
-}
-
-// Return the initial rating assigned to a new user.
-fn init_user_rating() -> f32 {
-    INITIAL_SCORE
-}
-
-// Update the user's rating based on the score given to the user by their partner,
-// weighted by the partner's own rating.
-fn update_user_rating(user: &mut User, partner: User, score: f32) {
-    user.rating += partner.rating * score / MAX_SCORE / K;
-}
-
-fn report() {
-
+/// Scan a message for obviously offensive language. Returns a vector of slices of the message
+/// detected as offensive, or an empty vector if none are found.
+pub fn process_message<'a>(msg: &'a str) -> Vec<&'a str> {
+    Vec::<&str>::new()
 }
