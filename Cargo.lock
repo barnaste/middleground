@@ -45,6 +45,7 @@ dependencies = [
  "auth",
  "axum",
  "dotenvy",
+ "sqlx",
  "tokio",
  "tower 0.4.13",
 ]
@@ -82,6 +83,7 @@ dependencies = [
  "shared",
  "supabase-auth",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

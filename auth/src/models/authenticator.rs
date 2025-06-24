@@ -13,7 +13,7 @@ pub trait AuthSession {
 /// A trait that enables interfacing to the database and supplementary services
 /// for standard authentication operations using JWTs and OTP-based login.
 #[async_trait]
-pub trait AuthManager: Clone + Send + Sync + 'static {
+pub trait Authenticator: Clone + Send + Sync + 'static {
     /// the error type for the manager
     type Error: std::error::Error + Send + Sync + 'static;
     /// the struct containing session information, including at least the access
@@ -24,4 +24,11 @@ pub trait AuthManager: Clone + Send + Sync + 'static {
     async fn verify_otp(&self, email: &str, token: &str) -> Result<Self::Session, Self::Error>;
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error>;
     async fn refresh_token(&self, refresh_token: &str) -> Result<Self::Session, Self::Error>;
+
+    /// Check that the access_token is a valid, untampered, JWT, *and that it refers
+    /// to a user session that has not expired or been terminated*. Only use this
+    /// function in situations where perfect authentication is required, as it will 
+    /// check for the presence of a session (most likely in a database), which adds 
+    /// additional complexity not necessary in most cases.
+    async fn verify_token(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error>;
 }

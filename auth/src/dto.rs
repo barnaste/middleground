@@ -1,5 +1,5 @@
 /// Data Transfer Objects
-use crate::managers::AuthSession;
+use crate::models::AuthSession;
 use serde::{Deserialize, Serialize};
 
 // TODO: consider what really deserves to be public...

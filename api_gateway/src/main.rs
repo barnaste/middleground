@@ -4,17 +4,28 @@
 
 use axum::Router;
 use std::net::SocketAddr;
+use auth::models::sb_authenticator::SbAuthenticator;
 
-/// Creates the main application router with all middleware and route configurations
+/// Creates the main application router with all middleware and route configurations.
 fn create_router() -> Router {
+    // TODO: temp; this doesn't belong here, and should be done in a separate function/main
+    let authenticator = SbAuthenticator::default();
+
     Router::new()
-        .nest("/auth", auth::router())
+        .nest("/auth", auth::router(authenticator.clone()))
     // TODO: rate limiting
 }
 
-// TODO: set up HTTPS (TLS) secure communication; read rustls, tokio_rustls docs
+/// The back-end entry point.
+/// The auth service currently uses supabase_auth, and thus
+/// requires the following environment variables to be set:
+///     SUPABASE_URL, SUPABASE_API_KEY, SUPABASE_JWT_SECRET
+/// The db in use is set up using the environment variables:
+///     DATABASE_URL, DATABASE_MAX_CON, DATABASE_MIN_CON
 #[tokio::main]
 async fn main() {
+    // TODO: set up HTTPS (TLS) secure communication; read rustls, tokio_rustls docs
+    
     // load .env file
     dotenvy::dotenv().expect("Unable to find .env file");
 

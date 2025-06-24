@@ -6,6 +6,7 @@ authors.workspace = true
 
 [dependencies]
 axum.workspace = true
+sqlx.workspace = true
 tokio.workspace = true
 tower.workspace = true
 

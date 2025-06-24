@@ -1,6 +1,6 @@
 /// An implementation of the AuthManager trait using Supabase's authentication system, directly
 /// on top of the AuthClient struct as offered by supabase_auth.
-use crate::managers::{AuthManager, AuthSession};
+use crate::models::{Authenticator, AuthSession};
 
 use async_trait::async_trait;
 use supabase_auth::error as sb_error;
@@ -21,12 +21,20 @@ impl AuthSession for sb_models::Session {
 // ------------------
 
 #[derive(Clone)]
-pub struct SbManager {
-    pub client: sb_models::AuthClient,
+pub struct SbAuthenticator {
+    client: sb_models::AuthClient,
+}
+
+impl Default for SbAuthenticator {
+    fn default() -> Self {
+        SbAuthenticator {
+            client: sb_models::AuthClient::new_from_env().unwrap(),
+        }
+    }
 }
 
 #[async_trait]
-impl AuthManager for SbManager {
+impl Authenticator for SbAuthenticator {
     type Error = sb_error::Error;
     type Session = sb_models::Session;
 
@@ -51,11 +59,15 @@ impl AuthManager for SbManager {
 
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error> {
         self.client
-            .logout(Some(sb_models::LogoutScope::Global), &bearer_token)
+            .logout(Some(sb_models::LogoutScope::Global), bearer_token)
             .await
     }
     
     async fn refresh_token(&self, refresh_token: &str) -> Result<Self::Session, Self::Error> {
         self.client.refresh_session(refresh_token).await
+    }
+
+    async fn verify_token(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error> {
+        self.client.get_user(access_token).await.map(|u| u.id)
     }
 }

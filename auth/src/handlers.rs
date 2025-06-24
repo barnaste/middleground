@@ -1,6 +1,6 @@
 use crate::dto::*;
 use crate::jwt;
-use crate::managers::AuthManager;
+use crate::models::Authenticator;
 
 use axum::{
     Json,
@@ -8,7 +8,7 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 
-pub async fn send_otp<A: AuthManager>(
+pub async fn send_otp<A: Authenticator>(
     State(state): State<A>,
     Json(payload): Json<SendOtpRequest>,
 ) -> Result<Json<MessageResponse>, (StatusCode, Json<ErrorResponse>)> {
@@ -25,7 +25,7 @@ pub async fn send_otp<A: AuthManager>(
     }
 }
 
-pub async fn verify_otp<A: AuthManager>(
+pub async fn verify_otp<A: Authenticator>(
     State(state): State<A>,
     Json(payload): Json<VerifyOtpRequest>,
 ) -> Result<Json<AuthResponse>, (StatusCode, Json<ErrorResponse>)> {
@@ -40,7 +40,7 @@ pub async fn verify_otp<A: AuthManager>(
     }
 }
 
-pub async fn logout<A: AuthManager>(
+pub async fn logout<A: Authenticator>(
     State(state): State<A>,
     headers: HeaderMap,
 ) -> Result<Json<MessageResponse>, (StatusCode, Json<ErrorResponse>)> {
@@ -69,7 +69,7 @@ pub async fn logout<A: AuthManager>(
     }
 }
 
-pub async fn refresh_token<A: AuthManager>(
+pub async fn refresh_token<A: Authenticator>(
     State(state): State<A>,
     headers: HeaderMap,
 ) -> Result<Json<AuthResponse>, (StatusCode, Json<ErrorResponse>)> {
