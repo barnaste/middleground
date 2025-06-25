@@ -1,21 +1,22 @@
-/// Data Transfer Objects
+//! Data Transfer Objects for API requests and responses.
+
 use crate::models::AuthSession;
 use serde::{Deserialize, Serialize};
-
-// TODO: consider what really deserves to be public...
 
 // -----------------
 //     REQUESTS
 // -----------------
 
+/// Request to send OTP to a user's contact (e.g. email).
 #[derive(Deserialize)]
 pub struct SendOtpRequest {
-    pub email: String,
+    pub contact: String,
 }
 
+/// Request to verify OTP and authenticate user.
 #[derive(Deserialize)]
 pub struct VerifyOtpRequest {
-    pub email: String,
+    pub contact: String,
     pub token: String,
 }
 
@@ -23,6 +24,7 @@ pub struct VerifyOtpRequest {
 //     RESPONSES
 // -----------------
 
+/// Authentication response containing tokens and expiration.
 #[derive(Serialize)]
 pub struct AuthResponse {
     pub access_token: String,
@@ -40,11 +42,13 @@ impl<S: AuthSession> From<S> for AuthResponse {
     }
 }
 
+/// Generic success message response.
 #[derive(Serialize)]
 pub struct MessageResponse {
     pub message: String,
 }
 
+/// Error response for failed operations.
 #[derive(Serialize)]
 pub struct ErrorResponse {
     pub error: String,

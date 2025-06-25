@@ -1,34 +1,95 @@
+//! Core authentication traits defining the interface for authentication backends.
+
 use async_trait::async_trait;
 
-/// A trait that enables access to key JWT-based auth values, namely the access
-/// and refresh tokens, as well as the access token expiration time.
-/// Meant to be used for types returned by the database and/or supplementary
-/// services when performing authentication operations.
+/// Trait for types that represent an authenticated session.
+///
+/// This trait provides access to the essential components of an authentication
+/// session: access token, refresh token, and expiration time.
 pub trait AuthSession {
+    /// Returns the access token for this session.
     fn access_token(&self) -> &str;
+
+    // Returns the refresh token for this session.
     fn refresh_token(&self) -> &str;
+
+    // Returns the expiration time as a Unix epoch timestamp.
     fn expires_at(&self) -> u64;
 }
 
-/// A trait that enables interfacing to the database and supplementary services
-/// for standard authentication operations using JWTs and OTP-based login.
+/// Trait for authentication backends that handle JWT and OTP-based authentication.
+///
+/// This trait defines the standard authentication operations needed for a complete
+/// authentication system, including OTP sending/verification, session management,
+/// and token operations.
 #[async_trait]
 pub trait Authenticator: Clone + Send + Sync + 'static {
-    /// the error type for the manager
+
+    /// The error type returned by authentication operations.
     type Error: std::error::Error + Send + Sync + 'static;
-    /// the struct containing session information, including at least the access
-    /// token, its expiration, and the refresh token
+
+    /// The session type containing authentication tokens and metadata.
     type Session: AuthSession + Send + Sync + 'static;
 
-    async fn send_otp(&self, email: &str) -> Result<(), Self::Error>;
-    async fn verify_otp(&self, email: &str, token: &str) -> Result<Self::Session, Self::Error>;
+    /// Send an OTP (One-Time Password) to the specified email address.
+    ///
+    /// # Arguments
+    /// * `contact` - The contact information to which the OTP is sent
+    ///
+    /// # Returns
+    /// * `Ok(())` if the OTP was sent successfully
+    /// * `Err(Self::Error)` if the operation failed
+    async fn send_otp(&self, contact: &str) -> Result<(), Self::Error>;
+
+    /// Verify an OTP and create an authenticated session.
+    ///
+    /// # Arguments
+    /// * `contact` - The contact information to which the OTP was sent
+    /// * `token` - The OTP token to verify
+    ///
+    /// # Returns
+    /// * `Ok(Self::Session)` with the new session if verification succeeded
+    /// * `Err(Self::Error)` if verification failed
+    async fn verify_otp(&self, contact: &str, token: &str) -> Result<Self::Session, Self::Error>;
+    
+    /// Log out a user by invalidating their session.
+    ///
+    /// # Arguments
+    /// * `bearer_token` - The access token of the session to invalidate
+    ///
+    /// # Returns
+    /// * `Ok(())` if logout was successful
+    /// * `Err(Self::Error)` if the operation failed, including because the
+    /// token was invalid or there exists no session associated to the token
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error>;
+    // TODO: check that logging out twice causes logout to fail!
+
+    /// Refresh an access token using a refresh token. 
+    ///
+    /// # Arguments
+    /// * `refresh_token` - The refresh token to use for getting a new access token
+    ///
+    /// # Returns
+    /// * `Ok(Self::Session)` with new session if the refresh token was valid
+    /// * `Err(Self::Error)` if the refresh token was invalid
     async fn refresh_token(&self, refresh_token: &str) -> Result<Self::Session, Self::Error>;
 
-    /// Check that the access_token is a valid, untampered, JWT, *and that it refers
-    /// to a user session that has not expired or been terminated*. Only use this
-    /// function in situations where perfect authentication is required, as it will 
-    /// check for the presence of a session (most likely in a database), which adds 
-    /// additional complexity not necessary in most cases.
+    /// Verify that an access token is valid and return the associated user ID.
+    ///
+    /// This method performs strict verification by checking both the token's
+    /// cryptographic validity and its status in the authentication backend
+    /// (e.g. checking if the associated session still exists in the database).
+    ///
+    /// Use this method when you need the highest level of security assurance,
+    /// such as for administrative operations or sensitive data access. Otherwise,
+    /// JWT validation is not implementation-specific but instead encryption 
+    /// algorithm specific, so that `crate::verify::validate_jwt_hmac` can be used.
+    ///
+    /// # Arguments
+    /// * `access_token` - The access token to verify
+    ///
+    /// # Returns
+    /// * `Ok(uuid::Uuid)` with the user ID if the token is valid
+    /// * `Err(Self::Error)` if the token is invalid or verification failed
     async fn verify_token(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error>;
 }

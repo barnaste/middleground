@@ -1,3 +1,5 @@
+//! Authentication middleware for protecting routes.
+
 use axum::Json;
 use axum::extract::{Request, State};
 use axum::http::StatusCode;
@@ -7,76 +9,108 @@ use axum::response::Response;
 use crate::models::Authenticator;
 use crate::{dto, jwt};
 
-// -----------------
-//      HELPERS
-// -----------------
-
-fn verify_auth_standard(token: String) -> Result<uuid::Uuid, String> {
-    match jwt::validate_jwt_hmac(token.as_str(), "temp") {
-        Ok(c) => uuid::Uuid::parse_str(c.sub.as_str())
-            .map_err(|e| format!("Token contains invalid uuid: {}", e)),
-        Err(e) => Err(format!("Token not valid: {}", e)),
-    }
-}
-
-async fn verify_auth_strict<A: Authenticator>(
-    authenticator: A,
-    token: String,
-) -> Result<uuid::Uuid, String> {
-    authenticator
-        .verify_token(token.as_str())
-        .await
-        .map_err(|e| format!("Token not valid: {}", e))
-}
-
-/// Generic function that extracts an access token from a request's headers,
-/// and verifies that it is valid using custom logic specified in verify_fn.
-async fn extract_and_verify<E, F>(
-    request: &Request,
-    verify_fn: F,
-) -> Result<uuid::Uuid, (StatusCode, Json<dto::ErrorResponse>)> 
-where
-    F: AsyncFnOnce(String) -> Result<uuid::Uuid, E>,
-    E: ToString,
-{
-    let token = jwt::extract_jwt_from_headers(request.headers())
-        .map_err(|e| (StatusCode::BAD_REQUEST, Json(dto::ErrorResponse { error: e })))?;
-
-    let result = verify_fn(token).await
-            .map_err(|e| (StatusCode::UNAUTHORIZED, Json(dto::ErrorResponse { error: e.to_string() })))?;
-
-    Ok(result)
-}
-
-// -----------------
-//     MIDDLEWARE
-// -----------------
-
-// note:
-// 2. handle the same AuthClient between router and middleware -- only auth_strict will need the
-//    authenticator, as auth_standard does not talk to the database
-
+/// Standard authentication middleware that validates JWT tokens locally.
+///
+/// This middleware validates JWT tokens using HMAC signature verification
+/// but does not check against the authentication backend. Use this for
+/// most authentication needs where performance is important.
+///
+/// The validated user UUID is inserted into request extensions and can be
+/// accessed in handlers using `axum::Extension`.
+///
+/// # Example
+/// ```rust
+/// use axum::{Router, routing::get, middleware};
+/// use auth::middleware::auth_standard;
+///
+/// let app = Router::new()
+///     .route("/protected", get(protected_handler))
+///     .route_layer(middleware::from_fn(auth_standard));
+/// ```
 async fn auth_standard(
     mut request: Request,
     next: Next,
 ) -> Result<Response, (StatusCode, Json<dto::ErrorResponse>)> {
-    let id = extract_and_verify(&request, |s: String| async move {
-        verify_auth_standard(s)
-    }).await?;
+    let token = jwt::extract_jwt_from_headers(request.headers()).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(dto::ErrorResponse {
+                error: e.to_string(),
+            }),
+        )
+    })?;
 
-    request.extensions_mut().insert(id);
+    let claims = jwt::validate_jwt_hmac(&token, "temp").map_err(|e| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(dto::ErrorResponse {
+                error: e.to_string(),
+            }),
+        )
+    })?;
+
+    let user_id = uuid::Uuid::parse_str(&claims.sub).map_err(|e| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(dto::ErrorResponse {
+                error: format!("Invalid user ID in token: {}", e),
+            }),
+        )
+    })?;
+
+    request.extensions_mut().insert(user_id);
     Ok(next.run(request).await)
 }
 
+/// Strict authentication middleware that validates tokens against the backend.
+///
+/// This middleware validates JWT tokens and also checks with the authentication
+/// backend to ensure the session the token refers to is still valid. Use this for
+/// endpoints that require the highest level of security, though it comes with a
+/// performance cost.
+///
+/// The validated user UUID is inserted into request extensions and can be
+/// accessed in handlers using `axum::Extension`.
+///
+/// # Example
+/// ```rust
+/// use axum::{Router, routing::get, middleware};
+/// use auth::{middleware::auth_strict, models::SbAuthenticator};
+///
+/// let authenticator = SbAuthenticator::default();
+/// let app = Router::new()
+///     .route("/admin", get(admin_handler))
+///     .route_layer(middleware::from_fn_with_state(
+///         authenticator.clone(),
+///         auth_strict
+///     ))
+///     .with_state(authenticator);
+/// ```
 async fn auth_strict<A: Authenticator>(
-    State(state): State<A>,
+    State(authenticator): State<A>,
     mut request: Request,
     next: Next,
 ) -> Result<Response, (StatusCode, Json<dto::ErrorResponse>)> {
-    let id = extract_and_verify(&request, |s: String| async move {
-        verify_auth_strict(state, s).await
-    }).await?;
+    let token = jwt::extract_jwt_from_headers(request.headers()).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(dto::ErrorResponse {
+                error: e.to_string(),
+            }),
+        )
+    })?;
 
-    request.extensions_mut().insert(id);
+    let user_id = authenticator.verify_token(&token).await.map_err(|e| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(dto::ErrorResponse {
+                error: format!("Token verification failed: {}", e),
+            }),
+        )
+    })?;
+
+    request.extensions_mut().insert(user_id);
     Ok(next.run(request).await)
 }
+
+// TODO: introduce tests using tokio::test

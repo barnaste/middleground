@@ -1,35 +1,81 @@
-/// An implementation of the AuthManager trait using Supabase's authentication system, directly
-/// on top of the AuthClient struct as offered by supabase_auth.
-use crate::models::{Authenticator, AuthSession};
+//! Supabase authentication backend implementation.
+
+use crate::models::{AuthSession, Authenticator};
 
 use async_trait::async_trait;
 use supabase_auth::error as sb_error;
 use supabase_auth::models as sb_models;
 
-// ------------------
-//    AUTH SESSION
-// ------------------
-
+// Implement AuthSession for Supabase's Session type
 impl AuthSession for sb_models::Session {
-    fn access_token(&self) -> &str { &self.access_token }
-    fn refresh_token(&self) -> &str { &self.refresh_token }
-    fn expires_at(&self) -> u64 { self.expires_at }
+    fn access_token(&self) -> &str {
+        &self.access_token
+    }
+    fn refresh_token(&self) -> &str {
+        &self.refresh_token
+    }
+    fn expires_at(&self) -> u64 {
+        self.expires_at
+    }
 }
 
-// ------------------
-//    AUTH MANAGER
-// ------------------
-
+/// Supabase-based authenticator implementation.
+///
+/// This authenticator uses Supabase's authentication service to handle
+/// OTP sending, verification, and session management. It requires
+/// Supabase environment variables to be configured.
+///
+/// # Environment Variables
+///
+/// The following environment variables must be set:
+/// - `SUPABASE_URL` - the Supabase project URL
+/// - `SUPABASE_API_KEY` - the Supabase API key
+/// - `SUPABASE_JWT_SECRET` - the JWT encryption secret
+///
+/// # Example
+///
+/// ```rust
+/// use auth::models::SbAuthenticator;
+///
+/// // Create authenticator from environment variables
+/// let authenticator = SbAuthenticator::default();
+///
+/// // Or create with custom client
+/// let client = supabase_auth::models::AuthClient::new_from_env().unwrap();
+/// let authenticator = SbAuthenticator::new(client);
+/// ```
 #[derive(Clone)]
 pub struct SbAuthenticator {
     client: sb_models::AuthClient,
 }
 
+impl SbAuthenticator {
+    /// Create a new sbAuthenticator with the provided AuthClient.
+    pub fn new(client: sb_models::AuthClient) -> Self {
+        Self { client }
+    }
+
+    /// Create a new SbAuthenticator from environment variables.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the required environment variables are not set
+    /// or if the AuthClient cannot be initialized.
+    pub fn from_env() -> Result<Self, Box<sb_error::Error>> {
+        let client = sb_models::AuthClient::new_from_env()?;
+        Ok(Self::new(client))
+    }
+}
+
 impl Default for SbAuthenticator {
+    /// Create a new SbAuthenticator using environment variables.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the required environment variables are not set.
+    /// For error handling, use `SbAuthenticator::from_env()` instead.
     fn default() -> Self {
-        SbAuthenticator {
-            client: sb_models::AuthClient::new_from_env().unwrap(),
-        }
+        Self::from_env().expect("Failed to create SbAuthenticator from environment variables")
     }
 }
 
@@ -52,6 +98,7 @@ impl Authenticator for SbAuthenticator {
             otp_type: sb_models::OtpType::Email,
             options: None,
         };
+
         self.client
             .verify_otp(sb_models::VerifyOtpParams::Email(params))
             .await
@@ -62,7 +109,7 @@ impl Authenticator for SbAuthenticator {
             .logout(Some(sb_models::LogoutScope::Global), bearer_token)
             .await
     }
-    
+
     async fn refresh_token(&self, refresh_token: &str) -> Result<Self::Session, Self::Error> {
         self.client.refresh_session(refresh_token).await
     }
@@ -71,3 +118,5 @@ impl Authenticator for SbAuthenticator {
         self.client.get_user(access_token).await.map(|u| u.id)
     }
 }
+
+// TODO: write tests!

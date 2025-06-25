@@ -3,6 +3,7 @@ name = "auth"
 edition = "2024"
 version.workspace = true
 authors.workspace = true
+description = "JWT-based authentication service with OTP support"
 
 [dependencies]
 axum.workspace = true
@@ -12,8 +13,10 @@ serde_json.workspace = true
 uuid.workspace = true
 
 async-trait = "0.1.88"
-base64 = "0.22.1"
 jsonwebtoken = "9.3.1"
 supabase-auth = "0.10.13"
+thiserror = "2.0.12"
 
-shared = { path = "../shared" }
+[dev-dependencies]
+base64 = "0.22.1"
+tokio-test = "0.4.4"

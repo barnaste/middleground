@@ -1,3 +1,5 @@
+//! HTTP handlers for authentication endpoints.
+
 use crate::dto::*;
 use crate::jwt;
 use crate::models::Authenticator;
@@ -8,90 +10,103 @@ use axum::{
     http::{HeaderMap, StatusCode},
 };
 
+/// Send OTP to the user's provided contact (e.g. email address).
 pub async fn send_otp<A: Authenticator>(
-    State(state): State<A>,
+    State(authenticator): State<A>,
     Json(payload): Json<SendOtpRequest>,
 ) -> Result<Json<MessageResponse>, (StatusCode, Json<ErrorResponse>)> {
-    match state.send_otp(&payload.email).await {
-        Ok(_) => Ok(Json(MessageResponse {
-            message: "OTP sent to your email. Please check your inbox".to_string(),
-        })),
-        Err(e) => Err((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: format!("OTP transmission failed: {}", e),
-            }),
-        )),
-    }
+    authenticator
+        .send_otp(&payload.contact)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: format!("Failed to send OTP: {}", e),
+                }),
+            )
+        })?;
+
+    Ok(Json(MessageResponse {
+        message: "OTP sent. Please check your inbox.".to_string(),
+    }))
 }
 
+/// Verify OTP and return authentication tokens.
 pub async fn verify_otp<A: Authenticator>(
-    State(state): State<A>,
+    State(authenticator): State<A>,
     Json(payload): Json<VerifyOtpRequest>,
 ) -> Result<Json<AuthResponse>, (StatusCode, Json<ErrorResponse>)> {
-    match state.verify_otp(&payload.email, &payload.token).await {
-        Ok(session) => Ok(Json(session.into())),
-        Err(e) => Err((
-            StatusCode::BAD_REQUEST,
-            Json(ErrorResponse {
-                error: format!("OTP verification failed: {}", e),
-            }),
-        )),
-    }
+    let session = authenticator
+        .verify_otp(&payload.contact, &payload.token)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::BAD_REQUEST,
+                Json(ErrorResponse {
+                    error: format!("OTP verification failed: {}", e),
+                }),
+            )
+        })?;
+
+    Ok(Json(session.into()))
 }
 
+/// Logout user and invalidate the session.
 pub async fn logout<A: Authenticator>(
-    State(state): State<A>,
+    State(authenticator): State<A>,
     headers: HeaderMap,
 ) -> Result<Json<MessageResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let bearer_token = match jwt::extract_jwt_from_headers(&headers) {
-        Ok(token) => token,
-        Err(e) => {
-            return Err((
-                StatusCode::UNAUTHORIZED,
-                Json(ErrorResponse {
-                    error: format!("Logout failed: {}", e),
-                }),
-            ));
-        }
-    };
-
-    match state.logout(&bearer_token).await {
-        Ok(_) => Ok(Json(MessageResponse {
-            message: "Successfully logged out".to_string(),
-        })),
-        Err(e) => Err((
+    let token = jwt::extract_jwt_from_headers(&headers).map_err(|e| {
+        (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
                 error: format!("Logout failed: {}", e),
             }),
-        )),
-    }
+        )
+    })?;
+
+    authenticator.logout(&token).await.map_err(|e| {
+        (
+            StatusCode::UNAUTHORIZED,
+            Json(ErrorResponse {
+                error: format!("Logout failed: {}", e),
+            }),
+        )
+    })?;
+
+    Ok(Json(MessageResponse {
+        message: "Successfully logged out".to_string(),
+    }))
 }
 
+/// Refresh access token using refresh token.
 pub async fn refresh_token<A: Authenticator>(
-    State(state): State<A>,
+    State(authenticator): State<A>,
     headers: HeaderMap,
 ) -> Result<Json<AuthResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let refresh_token = match jwt::extract_jwt_from_headers(&headers) {
-        Ok(token) => token,
-        Err(e) => {
-            return Err((
+    let refresh_token = jwt::extract_jwt_from_headers(&headers).map_err(|e| {
+        (
+            StatusCode::BAD_REQUEST,
+            Json(ErrorResponse {
+                error: format!("Token refresh failed: {}", e),
+            }),
+        )
+    })?;
+
+    let session = authenticator
+        .refresh_token(&refresh_token)
+        .await
+        .map_err(|e| {
+            (
                 StatusCode::UNAUTHORIZED,
                 Json(ErrorResponse {
                     error: format!("Token refresh failed: {}", e),
                 }),
-            ));
-        }
-    };
+            )
+        })?;
 
-    match state.refresh_token(&refresh_token).await {
-        Ok(state) => Ok(Json(state.into())),
-        Err(e) => Err((
-            StatusCode::UNAUTHORIZED,
-            Json(ErrorResponse {
-                error: format!("Token refresh failed: {}", e),
-            }),
-        )),
-    }
+    Ok(Json(session.into()))
 }
+
+// TODO: introduce tests using tokio::test

@@ -1,6 +1,7 @@
-// TODO: where do you REALLY need pub modifiers...
+//! Authentication models and traits.
+
 mod authenticator;
 pub mod sb_authenticator;
 
-pub use authenticator::Authenticator;
-pub use authenticator::AuthSession;
+pub use authenticator::{Authenticator, AuthSession};
+pub use sb_authenticator::SbAuthenticator;
