@@ -1,11 +1,13 @@
 [package]
-name = "entity"
+name = "shared"
 edition = "2021"
 version.workspace = true
 authors.workspace = true
 
 [dependencies]
 serde.workspace = true
+sqlx.workspace = true
 uuid.workspace = true
 chrono.workspace = true
+
 regex = "1.11.1"

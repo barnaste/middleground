@@ -6,8 +6,9 @@ authors.workspace = true
 
 [dependencies]
 axum.workspace = true
+sqlx.workspace = true
 tokio.workspace = true
 tower.workspace = true
-tower-sessions.workspace = true
 
 auth = { path = "../auth" }
+dotenvy = "0.15.7"

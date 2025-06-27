@@ -1,7 +1,5 @@
-use source::{Source, SourceInfo, WebsiteInfo, BookInfo};
+use shared::types::source::{Source, SourceInfo, WebsiteInfo};
 use std::error::Error;
-
-pub mod source;
 
 // Extract source info from a website URL using the Bibify API.
 async fn extract_source_url(url: &str) -> Result<Source, Box<dyn Error>> {
