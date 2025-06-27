@@ -4,7 +4,7 @@
 
 use axum::Router;
 use std::net::SocketAddr;
-use auth::models::sb_authenticator::SbAuthenticator;
+use auth::models::SbAuthenticator;
 
 /// Creates the main application router with all middleware and route configurations.
 fn create_router() -> Router {

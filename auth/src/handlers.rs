@@ -108,5 +108,3 @@ pub async fn refresh_token<A: Authenticator>(
 
     Ok(Json(session.into()))
 }
-
-// TODO: introduce tests using tokio::test

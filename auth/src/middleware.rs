@@ -27,7 +27,7 @@ use crate::{dto, jwt};
 ///     .route("/protected", get(protected_handler))
 ///     .route_layer(middleware::from_fn(auth_standard));
 /// ```
-async fn auth_standard(
+pub async fn auth_standard(
     mut request: Request,
     next: Next,
 ) -> Result<Response, (StatusCode, Json<dto::ErrorResponse>)> {
@@ -86,7 +86,7 @@ async fn auth_standard(
 ///     ))
 ///     .with_state(authenticator);
 /// ```
-async fn auth_strict<A: Authenticator>(
+pub async fn auth_strict<A: Authenticator>(
     State(authenticator): State<A>,
     mut request: Request,
     next: Next,
@@ -112,5 +112,3 @@ async fn auth_strict<A: Authenticator>(
     request.extensions_mut().insert(user_id);
     Ok(next.run(request).await)
 }
-
-// TODO: introduce tests using tokio::test

@@ -62,7 +62,6 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     /// * `Err(Self::Error)` if the operation failed, including because the
     /// token was invalid or there exists no session associated to the token
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error>;
-    // TODO: check that logging out twice causes logout to fail!
 
     /// Refresh an access token using a refresh token. 
     ///

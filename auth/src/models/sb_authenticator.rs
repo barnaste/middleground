@@ -118,5 +118,3 @@ impl Authenticator for SbAuthenticator {
         self.client.get_user(access_token).await.map(|u| u.id)
     }
 }
-
-// TODO: write tests!
