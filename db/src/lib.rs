@@ -26,10 +26,14 @@ use sqlx::postgres::PgPoolOptions;
 ///
 /// ```rust,no_run
 /// use db::create_pool;
+/// use db::error::DbError;
 ///
-/// let pool = create_pool().await?;
-/// println!("Connected to database!");
-/// Ok(())
+/// #[tokio::main]
+/// async fn main() -> Result<(), DbError> {
+///     let pool = create_pool().await?;
+///     println!("Connected to database!");
+///     Ok(())
+/// }
 /// ```
 pub async fn create_pool() -> Result<sqlx::PgPool> {
     let database_url = dotenvy::var("DATABASE_URL")

@@ -9,7 +9,7 @@ use std::net::SocketAddr;
 /// Creates the main application router with all middleware and route configurations.
 async fn create_router() -> Router {
     let authenticator = SbAuthenticator::default();
-    let pool = db::create_pool().await.unwrap();
+    let _pool = db::create_pool().await.unwrap();
 
     Router::new()
         .nest("/auth", auth::router(authenticator.clone()))

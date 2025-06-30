@@ -14,7 +14,7 @@
 //! ## Quick Start
 //!
 //! ```rust,no_run
-//! use auth::{router, SbAuthenticator};
+//! use auth::{router, models::SbAuthenticator};
 //! use axum::Router;
 //!
 //! #[tokio::main]

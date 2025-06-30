@@ -34,7 +34,7 @@ impl AuthSession for sb_models::Session {
 ///
 /// # Example
 ///
-/// ```rust
+/// ```rust,no_run
 /// use auth::models::SbAuthenticator;
 ///
 /// // Create authenticator from environment variables

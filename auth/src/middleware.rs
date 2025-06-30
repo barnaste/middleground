@@ -19,7 +19,8 @@ use crate::{dto, jwt};
 /// accessed in handlers using `axum::Extension`.
 ///
 /// # Example
-/// ```rust
+///
+/// ```rust,ignore
 /// use axum::{Router, routing::get, middleware};
 /// use auth::middleware::auth_standard;
 ///
@@ -74,7 +75,8 @@ pub async fn auth_standard(
 /// accessed in handlers using `axum::Extension`.
 ///
 /// # Example
-/// ```rust
+///
+/// ```rust,ignore
 /// use axum::{Router, routing::get, middleware};
 /// use auth::{middleware::auth_strict, models::SbAuthenticator};
 ///

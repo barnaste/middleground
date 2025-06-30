@@ -366,6 +366,7 @@ dependencies = [
  "dotenvy",
  "sqlx",
  "thiserror",
+ "tokio",
  "uuid",
 ]
 
