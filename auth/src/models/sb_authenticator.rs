@@ -11,9 +11,11 @@ impl AuthSession for sb_models::Session {
     fn access_token(&self) -> &str {
         &self.access_token
     }
+    
     fn refresh_token(&self) -> &str {
         &self.refresh_token
     }
+
     fn expires_at(&self) -> u64 {
         self.expires_at
     }
@@ -42,17 +44,19 @@ impl AuthSession for sb_models::Session {
 ///
 /// // Or create with custom client
 /// let client = supabase_auth::models::AuthClient::new_from_env().unwrap();
-/// let authenticator = SbAuthenticator::new(client);
+/// let jwt_secret = dotenvy::var("SUPABASE_JWT_SECRET").unwrap();
+/// let authenticator = SbAuthenticator::new(client, jwt_secret);
 /// ```
 #[derive(Clone)]
 pub struct SbAuthenticator {
     client: sb_models::AuthClient,
+    jwt_secret: String,
 }
 
 impl SbAuthenticator {
     /// Create a new sbAuthenticator with the provided AuthClient.
-    pub fn new(client: sb_models::AuthClient) -> Self {
-        Self { client }
+    pub fn new(client: sb_models::AuthClient, jwt_secret: String) -> Self {
+        Self { client, jwt_secret }
     }
 
     /// Create a new SbAuthenticator from environment variables.
@@ -61,9 +65,13 @@ impl SbAuthenticator {
     ///
     /// Returns an error if the required environment variables are not set
     /// or if the AuthClient cannot be initialized.
-    pub fn from_env() -> Result<Self, Box<sb_error::Error>> {
-        let client = sb_models::AuthClient::new_from_env()?;
-        Ok(Self::new(client))
+    pub fn from_env() -> Result<Self, String> {
+        let client = sb_models::AuthClient::new_from_env()
+            .map_err(|e| format!("{e}"))?;
+        let jwt_secret = dotenvy::var("SUPABASE_JWT_SECRET")
+            .map_err(|e| format!("{e}"))?;
+
+        Ok(Self::new(client, jwt_secret))
     }
 }
 
@@ -83,6 +91,10 @@ impl Default for SbAuthenticator {
 impl Authenticator for SbAuthenticator {
     type Error = sb_error::Error;
     type Session = sb_models::Session;
+
+    fn jwt_secret(&self) -> &str {
+        &self.jwt_secret
+    }
 
     async fn send_otp(&self, contact: &str) -> Result<(), Self::Error> {
         self.client

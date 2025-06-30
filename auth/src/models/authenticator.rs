@@ -31,6 +31,12 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     /// The session type containing authentication tokens and metadata.
     type Session: AuthSession + Send + Sync + 'static;
 
+    /// Returns the JWT secret used for token signatures.
+    ///
+    /// This secret is used by middleware for local JWT validation without
+    /// requiring a call to the authentication backend.
+    fn jwt_secret(&self) -> &str;
+
     /// Send an OTP (One-Time Password) to the specified contact.
     ///
     /// # Arguments

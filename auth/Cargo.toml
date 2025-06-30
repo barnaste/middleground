@@ -7,10 +7,11 @@ description = "JWT-based authentication service with OTP support"
 
 [dependencies]
 axum.workspace = true
-tokio.workspace = true
+dotenvy.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 uuid.workspace = true
 
 async-trait = "0.1.88"

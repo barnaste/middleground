@@ -22,13 +22,19 @@ use crate::{dto, jwt};
 ///
 /// ```rust,ignore
 /// use axum::{Router, routing::get, middleware};
-/// use auth::middleware::auth_standard;
+/// use auth::{middleware::auth_standard, models::SbAuthenticator};
 ///
+/// let authenticator = SbAuthenticator::default();
 /// let app = Router::new()
 ///     .route("/protected", get(protected_handler))
-///     .route_layer(middleware::from_fn(auth_standard));
+///     .route_layer(middleware::from_fn_with_state(
+///         authenticator.clone(),
+///         auth_standard
+///     ))
+///     .with_state(authenticator);
 /// ```
-pub async fn auth_standard(
+pub async fn auth_standard<A: Authenticator>(
+    State(authenticator): State<A>,
     mut request: Request,
     next: Next,
 ) -> Result<Response, (StatusCode, Json<dto::ErrorResponse>)> {
@@ -41,8 +47,7 @@ pub async fn auth_standard(
         )
     })?;
 
-    // TODO: this should not remain "temp"...
-    let claims = jwt::validate_jwt_hmac(&token, "temp").map_err(|e| {
+    let claims = jwt::validate_jwt_hmac(&token, authenticator.jwt_secret()).map_err(|e| {
         (
             StatusCode::UNAUTHORIZED,
             Json(dto::ErrorResponse {

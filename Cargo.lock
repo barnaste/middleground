@@ -115,6 +115,7 @@ dependencies = [
  "async-trait",
  "axum",
  "base64",
+ "dotenvy",
  "jsonwebtoken",
  "serde",
  "serde_json",
