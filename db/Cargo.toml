@@ -1,15 +1,14 @@
 [package]
-name = "api_gateway"
+name = "db"
 edition = "2024"
 version.workspace = true
 authors.workspace = true
+description = "Database abstraction layer for PostgreSQL with sqlx"
 
 [dependencies]
-axum.workspace = true
+chrono.workspace = true
 dotenvy.workspace = true
 sqlx.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
-tower.workspace = true
-
-auth = { path = "../auth" }
-db = { path = "../db" }
+uuid.workspace = true

@@ -1,23 +1,68 @@
-use axum::{Router, middleware as axum_middleware, routing::post};
+//! # Auth Crate
+//!
+//! A flexible authentication library for Axum web applications, providing JWT-based
+//! authentication with with OTP (One-Time Password) support.
+//!
+//! ## Features
+//!
+//! - OTP-based authentication
+//! - JWT token management (access & refresh tokens)
+//! - Flexible authentication backends (Supabase included)
+//! - Authentication middleware for route protection
+//! - Type-safe error handling
+//!
+//! ## Quick Start
+//!
+//! ```rust,no_run
+//! use auth::{router, models::SbAuthenticator};
+//! use axum::Router;
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let authenticator = SbAuthenticator::default();
+//!     let auth_router = router(authenticator);
+//!
+//!     let app = Router::new()
+//!         .nest("/auth", auth_router);
+//!
+//!     // Start your server...
+//! }
+//! ```
 
+use axum::{Router, routing::post};
+
+mod dto;
+mod handlers;
+mod jwt;
+mod error;
+
+pub mod models;
 pub mod middleware;
-pub mod services;
 
-pub fn router() -> Router {
-    // these will require full authentication to access
-    let full_auth_routes = Router::new()
-        // .route("/logout", post(root))
-        .layer(axum_middleware::from_fn(middleware::require_auth));
-
-    // these will require pending authentication to access
-    let pending_auth_routes = Router::new()
-        // .route("/verify-email", post(root))
-        // .route("/resend-verification", post(root))
-        .layer(axum_middleware::from_fn(middleware::require_pending));
-
+/// Creates an authentication router with the standard endpoints using the provided authenticator.
+///
+/// The router includes the following endpoints:
+///  - `POST /send-otp` - send OTP to user via their contact information; defaults to email
+///  - `POST /verify-otp` - verify OTP and retrieve access and refresh tokens
+///  - `POST /logout` - invalidate associated session
+///  - `POST /refresh` - refresh access token using refresh token
+///
+///  # Example
+///
+///  ```rust,no_run
+///  use auth::{router, models::SbAuthenticator};
+///
+///  let authenticator = SbAuthenticator::default();
+///  let auth_router = router(authenticator);
+///  ```
+pub fn router<A>(authenticator: A) -> Router
+where
+    A: models::Authenticator,
+{
     Router::new()
-        .route("/register", post(services::register))
-        // .route("/login", post(root))
-        .merge(pending_auth_routes)
-        .merge(full_auth_routes)
+        .route("/send-otp", post(handlers::send_otp::<A>))
+        .route("/verify-otp", post(handlers::verify_otp::<A>))
+        .route("/logout", post(handlers::logout::<A>))
+        .route("/refresh", post(handlers::refresh_token::<A>))
+        .with_state(authenticator)
 }
