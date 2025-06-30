@@ -2,14 +2,14 @@
 //!
 //! Configures and starts the HTTP server with session management.
 
+use auth::models::SbAuthenticator;
 use axum::Router;
 use std::net::SocketAddr;
-use auth::models::SbAuthenticator;
 
 /// Creates the main application router with all middleware and route configurations.
-fn create_router() -> Router {
-    // TODO: temp; this doesn't belong here, and should be done in a separate function/main
+async fn create_router() -> Router {
     let authenticator = SbAuthenticator::default();
+    let pool = db::create_pool().await.unwrap();
 
     Router::new()
         .nest("/auth", auth::router(authenticator.clone()))
@@ -25,7 +25,7 @@ fn create_router() -> Router {
 #[tokio::main]
 async fn main() {
     // TODO: set up HTTPS (TLS) secure communication; read rustls, tokio_rustls docs
-    
+
     // load .env file
     dotenvy::dotenv().expect("Unable to find .env file");
 
@@ -33,5 +33,5 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
     println!("Server listening on {}", addr);
-    axum::serve(listener, create_router()).await.unwrap();
+    axum::serve(listener, create_router().await).await.unwrap();
 }

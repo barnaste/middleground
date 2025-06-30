@@ -31,7 +31,7 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     /// The session type containing authentication tokens and metadata.
     type Session: AuthSession + Send + Sync + 'static;
 
-    /// Send an OTP (One-Time Password) to the specified email address.
+    /// Send an OTP (One-Time Password) to the specified contact.
     ///
     /// # Arguments
     /// * `contact` - The contact information to which the OTP is sent

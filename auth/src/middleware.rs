@@ -40,6 +40,7 @@ pub async fn auth_standard(
         )
     })?;
 
+    // TODO: this should not remain "temp"...
     let claims = jwt::validate_jwt_hmac(&token, "temp").map_err(|e| {
         (
             StatusCode::UNAUTHORIZED,

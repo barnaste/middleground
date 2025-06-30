@@ -1,7 +1,7 @@
 //! JWT utilities for token extraction and validation.
 
 use axum::http::HeaderMap;
-use jsonwebtoken::{DecodingKey, Validation, decode, errors::Error as JwtError};
+use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::{Deserialize, Serialize};
 
 use crate::error::AuthError;
@@ -51,7 +51,7 @@ pub fn validate_jwt_hmac(token: &str, secret: &str) -> Result<Claims, AuthError>
 mod tests {
     use axum::http::HeaderValue;
     use base64::{Engine, prelude::BASE64_STANDARD_NO_PAD};
-    use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+    use jsonwebtoken::{Algorithm, EncodingKey, Header, encode, errors::Error as JwtError};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     use super::*;

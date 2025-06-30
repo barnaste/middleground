@@ -1,0 +1,13 @@
+[package]
+name = "db"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+description = "Database abstraction layer for PostgreSQL with sqlx"
+
+[dependencies]
+chrono.workspace = true
+dotenvy.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+uuid.workspace = true

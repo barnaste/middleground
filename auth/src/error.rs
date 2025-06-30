@@ -3,6 +3,10 @@
 use thiserror::Error;
 
 /// Unified error type for authentication operations.
+///
+/// This enum covers all possible error scenarios that can occur when
+/// during authentication, providing detailed context for debugging
+/// and error handling.
 #[derive(Error, Debug)]
 pub enum AuthError {
     #[error("Missing authorization header")]

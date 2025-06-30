@@ -84,24 +84,29 @@ impl Authenticator for SbAuthenticator {
     type Error = sb_error::Error;
     type Session = sb_models::Session;
 
-    async fn send_otp(&self, email: &str) -> Result<(), Self::Error> {
+    async fn send_otp(&self, contact: &str) -> Result<(), Self::Error> {
         self.client
-            .send_email_with_otp(email, None)
+            .send_email_with_otp(contact, None)
             .await
             .map(|_| ())
     }
 
-    async fn verify_otp(&self, email: &str, token: &str) -> Result<Self::Session, Self::Error> {
+    async fn verify_otp(&self, contact: &str, token: &str) -> Result<Self::Session, Self::Error> {
         let params = sb_models::VerifyEmailOtpParams {
-            email: email.to_string(),
+            email: contact.to_string(),
             token: token.to_string(),
             otp_type: sb_models::OtpType::Email,
             options: None,
         };
 
-        self.client
+        let session = self.client
             .verify_otp(sb_models::VerifyOtpParams::Email(params))
-            .await
+            .await?;
+
+        // TODO: verify that the session corresponds to an existing user in our 'public' schema; 
+        // if it does not, add the user (UUID + any information to be filled in)
+
+        Ok(session)
     }
 
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error> {

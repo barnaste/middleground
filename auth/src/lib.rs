@@ -11,7 +11,6 @@
 //! - Authentication middleware for route protection
 //! - Type-safe error handling
 //!
-//!
 //! ## Quick Start
 //!
 //! ```rust,no_run
@@ -50,7 +49,7 @@ pub mod middleware;
 ///
 ///  # Example
 ///
-///  ```rust
+///  ```rust,no_run
 ///  use auth::{router, models::SbAuthenticator};
 ///
 ///  let authenticator = SbAuthenticator::default();
