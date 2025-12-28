@@ -2,10 +2,12 @@
 resolver = "2"
 members = [
 	"api_gateway",
-	"auth", "db", 
+	"auth",
+	"ws",
+	"db", 
   "shared",
 	"source_validation"
-]
+, "cli"]
 
 [workspace.package]
 version = "0.1.0"
