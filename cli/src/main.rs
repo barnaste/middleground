@@ -1,10 +1,10 @@
 // TODO: see the README.md file for additional specifications
 //  1. verify that cookies are being sent
 //  2. shell commands and REPL loop -- rustyline
-//  3. before implementing any actual commands, add 
-//      3.1. HELP 
+//  3. before implementing any actual commands, add
+//      3.1. HELP
 //      3.2. STATUS
-//      3.3. EXIT/QUIT
+//      3.3. EXIT/QUIT (SHOULD LOGOUT)
 //      3.4. CLEAR
 //  4. log-out and auto-check for refresh on HTTP req -> refresh tokens
 //     --> not sure how to make this clean
@@ -12,7 +12,7 @@
 mod auth;
 mod state;
 
-use auth::AuthState;
+use auth::AuthClient;
 use clap::Parser;
 use colored::Colorize;
 use state::AppState;
@@ -53,7 +53,8 @@ async fn run(state: Arc<RwLock<AppState>>) {
     );
 }
 
-async fn perform_otp_login<'a>(auth_client: AuthState<'a>, contact: &str) -> (String, String, u64) {
+async fn perform_otp_login(host: &str, contact: &str) -> AuthClient {
+    let mut auth_client = AuthClient::new(host);
     println!("Sending OTP to {}", contact.blue());
 
     while auth_client.send_otp(contact).await.is_err() {
@@ -65,14 +66,14 @@ async fn perform_otp_login<'a>(auth_client: AuthState<'a>, contact: &str) -> (St
     println!("{} OTP Sent! Check your email.", "✓".green());
     println!("\nEnter the 8 digit code: ");
 
-    loop { 
+    loop {
         let mut otp = String::new();
         std::io::stdin().read_line(&mut otp).unwrap();
         println!("Verifying OTP...");
 
-        if let Ok(ret) = auth_client.verify_otp(contact, otp.trim()).await {
+        if auth_client.verify_otp(contact, otp.trim()).await.is_ok() {
             println!("{} Verification successful!\n", "✓".green());
-            return ret;
+            return auth_client;
         } else {
             println!("{} Verification failed, try again.", "✗".red());
         };
@@ -97,15 +98,9 @@ async fn main() {
         args.username = Some(email.trim().into());
     }
 
-    let mut state = AppState::new(
-        args.host.clone(),
-        args.username.clone().unwrap(),
-    );
-
     // handle log-in using OTP
-    let auth_client = AuthState::new(state.http_client(), args.host);
-    let (at, rt, ea) = perform_otp_login(auth_client, &args.username.unwrap()).await;
-    state.set_auth(at, rt, ea);
+    let client = perform_otp_login(&args.host, &args.username.clone().unwrap()).await;
 
+    let state = AppState::new(args.host, args.username.unwrap(), client);
     run(Arc::new(RwLock::new(state))).await;
 }

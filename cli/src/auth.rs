@@ -22,20 +22,37 @@ struct AuthResponse {
     expires_at: u64,
 }
 
-pub struct AuthState<'a> {
-    client: &'a reqwest::Client,
+/// Client used for HTTP requests -- handles authentication.
+pub struct AuthClient {
+    client: reqwest::Client,
     base_url: String,
+    access_token: Option<String>,
+    refresh_token: Option<String>,
+    tok_expir: Option<u64>,
 }
 
-impl<'a> AuthState<'a> {
-    pub fn new(client: &'a reqwest::Client, base_url: String) -> Self {
-        Self { client, base_url }
+impl AuthClient {
+    pub fn new(base_url: &str) -> Self {
+        let client = reqwest::Client::builder()
+            .cookie_store(true)
+            .build()
+            .expect("FATAL: unable to create an HTTP client.");
+
+        Self {
+            client,
+            base_url: base_url.to_string(),
+            access_token: None,
+            refresh_token: None,
+            tok_expir: None
+        }
     }
 
     /// Send OTP to user's contact
     pub async fn send_otp(&self, contact: &str) -> Result<()> {
         let url = format!("{}/auth/send-otp", self.base_url);
-        let request = SendOtpRequest { contact: contact.to_string() };
+        let request = SendOtpRequest {
+            contact: contact.to_string(),
+        };
 
         let response = self.client.post(url).json(&request).send().await?;
 
@@ -48,18 +65,22 @@ impl<'a> AuthState<'a> {
         }
     }
 
-    pub async fn verify_otp(&self, contact: &str, token: &str) -> Result<(String, String, u64)> {
+    pub async fn verify_otp(&mut self, contact: &str, token: &str) -> Result<()> {
         let url = format!("{}/auth/verify-otp", self.base_url);
-        let request = VerifyOtpRequest { 
+        let request = VerifyOtpRequest {
             contact: contact.to_string(),
-            token: token.to_string() 
+            token: token.to_string(),
         };
 
         let response = self.client.post(url).json(&request).send().await?;
 
         if response.status().is_success() {
-            let aresp = response.json::<AuthResponse>().await?;
-            Ok((aresp.access_token, aresp.refresh_token, aresp.expires_at))
+            let auth_resp = response.json::<AuthResponse>().await?;
+            self.refresh_token = Some(auth_resp.refresh_token);
+            self.access_token = Some(auth_resp.access_token);
+            self.tok_expir = Some(auth_resp.expires_at);
+
+            Ok(())
         } else {
             let status = response.status();
             let body = response.text().await?;
@@ -68,4 +89,4 @@ impl<'a> AuthState<'a> {
     }
 }
 
-// TODO: send_otp, verify_otp, refresh_token, logout via reqwest
+// TODO: refresh_token, logout via reqwest
