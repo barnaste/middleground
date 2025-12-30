@@ -1,17 +1,15 @@
 // TODO: see the README.md file for additional specifications
-//  1. verify that cookies are being sent
-//  2. shell commands and REPL loop -- rustyline
-//  3. before implementing any actual commands, add
+//  1. before implementing any actual commands, add
 //      3.1. HELP
 //      3.2. STATUS
 //      3.3. EXIT/QUIT (SHOULD LOGOUT)
 //      3.4. CLEAR
-//  4. log-out and auto-check for refresh on HTTP req -> refresh tokens
-//     --> not sure how to make this clean
-//  5. websocket features -> to be done AFTER the server websocket implementation is complete
+//  2. websocket features -> to be done AFTER the server websocket implementation is complete
 mod auth;
+mod shellcmd;
 mod state;
 
+use anyhow::Result;
 use auth::AuthClient;
 use clap::Parser;
 use colored::Colorize;
@@ -40,8 +38,10 @@ struct Cli {
     no_color: bool,
 }
 
-async fn run(state: Arc<RwLock<AppState>>) {
-    // TODO: rustyline?
+async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
+    // TODO: can have hints and auto-completion if desired
+    use rustyline::DefaultEditor;
+    use rustyline::error::ReadlineError;
 
     println!(
         "{}",
@@ -51,6 +51,43 @@ async fn run(state: Arc<RwLock<AppState>>) {
          └─────────────────────────────────────────┘"
             .bright_cyan()
     );
+
+    // print entry data
+    let state_read = state.read().await;
+    println!("Connected to: {}", state_read.host.bright_blue());
+    println!("User: {}", state_read.username.bright_blue());
+    println!("Type {} for available commands\n", "'help'".bright_yellow());
+    drop(state_read);
+
+    let mut rl = DefaultEditor::new()?;
+
+    loop {
+        let prompt = {
+            let state_read = state.read().await;
+            state_read.prompt()
+        };
+
+        match rl.readline(&prompt) {
+            Ok(line) => {
+                let _ = rl.add_history_entry(line.as_str());
+                println!("Line: {}", line);
+            }
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break;
+            }
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break;
+            }
+            Err(err) => {
+                println!("{} {:?}", "✗".red(), err);
+            }
+        }
+    }
+
+    println!("\n{} Goodbye!", "✓".green());
+    Ok(())
 }
 
 async fn perform_otp_login(host: &str, contact: &str) -> AuthClient {
@@ -99,8 +136,9 @@ async fn main() {
     }
 
     // handle log-in using OTP
-    let client = perform_otp_login(&args.host, &args.username.clone().unwrap()).await;
+    // let client = perform_otp_login(&args.host, &args.username.clone().unwrap()).await;
+    let client = AuthClient::new(&args.host);
 
     let state = AppState::new(args.host, args.username.unwrap(), client);
-    run(Arc::new(RwLock::new(state))).await;
+    run(Arc::new(RwLock::new(state))).await.unwrap();
 }

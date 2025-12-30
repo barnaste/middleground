@@ -2,11 +2,11 @@ use crate::auth::AuthClient;
 
 /// Application state
 pub struct AppState {
-    host: String,
-    username: String,
-    client: AuthClient,
-    ws_connected: bool,
-    current_channel: Option<String>, // TODO: need a handle to the reading thread
+    pub host: String,
+    pub username: String,
+    pub client: AuthClient,
+    pub ws_connected: bool,
+    pub current_channel: Option<String>, // TODO: need a handle to the reading thread
 }
 
 impl AppState {
@@ -27,7 +27,13 @@ impl AppState {
             .or_else(|| self.host.strip_prefix("https://"))
             .unwrap_or(&self.host);
 
-        let mut parts = vec![&self.username, "@", host_short];
+        let user_short = self
+            .username
+            .split('@')
+            .next()
+            .unwrap_or(&self.username);
+
+        let mut parts = vec![user_short, "@", host_short];
 
         if self.ws_connected {
             parts.push(":ws");
@@ -37,10 +43,6 @@ impl AppState {
             }
         }
 
-        format!("[{}] >", parts.join(""))
-    }
-
-    pub fn get_client(&self) -> &AuthClient {
-        &self.client
+        format!("[{}] > ", parts.join(""))
     }
 }
