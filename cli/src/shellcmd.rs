@@ -1,7 +1,7 @@
 /// Command parser for interactive shell
-enum ShellCommand {
+pub enum ShellCommand {
     // global commands
-    Help(Option<String>),
+    Help,
     Status,
     Clear,
     Exit,
@@ -13,6 +13,9 @@ enum ShellCommand {
 
     // messaging commands
     Send(String),
+    Reply(String, String),
+    Edit(String, String),
+    Delete(String),
     Subscribe(String),
     Unsubscribe,
     Messages(Option<usize>),
@@ -22,8 +25,20 @@ enum ShellCommand {
 }
 
 impl ShellCommand {
-    fn parse(input: &str) -> Self {
-        let parts: Vec<&str> = input.trim().split_whitespace().collect();
-        todo!()
+    pub fn parse(input: &str) -> Self {
+        let parts: Vec<&str> = input.split_whitespace().collect();
+        if parts.is_empty() {
+            return ShellCommand::Unknown(String::new());
+        }
+
+        match parts[0] {
+            "help" => ShellCommand::Help,
+            "status" => ShellCommand::Status,
+            "clear" => ShellCommand::Clear,
+            "exit" => ShellCommand::Exit,
+            "quit" => ShellCommand::Exit,
+
+            _ => ShellCommand::Unknown(input.to_string()),
+        }
     }
 }
