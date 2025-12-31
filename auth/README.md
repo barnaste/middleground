@@ -106,6 +106,7 @@ async fn protected_handler(
     format!("Hello, user {}!", user_id)
 }
 
+let authenticator = SbAuthenticator::default();
 let app = Router::new()
     .route("/protected", get(protected_handler))
     .route_layer(middleware::from_fn_with_state(
