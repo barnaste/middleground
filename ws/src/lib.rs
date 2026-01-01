@@ -1,3 +1,15 @@
-// TODO: implement the server-side; create the request handlers, implement handshake, and init
-// router. Please see the corresponding README.md file for more information on payloads and
-// expected behaviours.
+// TODO: for all crates, add detailed documentation comments wherever relevant
+
+use axum::{Router, routing::any};
+use shared::AppState;
+
+mod error;
+mod handler;
+mod messages;
+mod session;
+
+pub fn router(state: AppState) -> Router {
+    Router::new()
+        .route("/ws", any(handler::ws_handler))
+        .with_state(state)
+}

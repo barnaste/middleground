@@ -5,3 +5,10 @@ version.workspace = true
 authors.workspace = true
 
 [dependencies]
+axum = { workspace = true, features = ["ws"] }
+serde.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+shared = { path = "../shared" }
+thiserror.workspace = true

@@ -78,7 +78,7 @@ mod tests {
     fn test_extract_jwt_from_headers_success() {
         let mut headers = HeaderMap::new();
         headers.insert(
-            AUTHORIZATION,
+            "authorization",
             HeaderValue::from_str("Bearer test-token").unwrap(),
         );
 
