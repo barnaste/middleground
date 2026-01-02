@@ -55,8 +55,11 @@ pub async fn handle_socket(
 // NOTE: may need the user's id
 async fn socket_read(mut receiver: SplitStream<WebSocket>) {
     // read loop; converts message into something that can be processed by message module
+    //   in particular, we should deserialize into an IncomingMessage then call handle()
+    //
     // we will need to publish outgoing messages via a new redis connection once it is created.
-    // this should be a function within message module
+    // this is the publish_message() function call, which accepts an OutgoingMessage; this outging
+    // message should be accepted from the previous handle()
 
     // once loop terminates, return; we should close the ws connection soon after
 }
