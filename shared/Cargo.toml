@@ -11,3 +11,4 @@ uuid.workspace = true
 chrono.workspace = true
 
 regex = "1.11.1"
+redis.workspace = true

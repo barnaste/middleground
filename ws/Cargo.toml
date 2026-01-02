@@ -6,9 +6,11 @@ authors.workspace = true
 
 [dependencies]
 axum = { workspace = true, features = ["ws"] }
+futures = "0.3.31"
+redis = { workspace = true, features = ["aio"] }
 serde.workspace = true
+thiserror.workspace = true
 tokio.workspace = true
 uuid.workspace = true
 
 shared = { path = "../shared" }
-thiserror.workspace = true
