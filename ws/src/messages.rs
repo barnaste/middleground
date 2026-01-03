@@ -110,6 +110,7 @@ async fn handle_delete(
     todo!()
 }
 
+// TODO: convert message to a JSON string prior to sending via redis
 pub async fn publish_msg(
     conversation_id: Uuid,
     message: OutgoingMessage,

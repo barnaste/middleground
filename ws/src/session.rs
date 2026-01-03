@@ -1,6 +1,6 @@
 use axum::extract::ws::{Message, WebSocket};
 use futures::{
-    StreamExt,
+    SinkExt, StreamExt,
     stream::{SplitSink, SplitStream},
 };
 use shared::AppState;
@@ -19,7 +19,7 @@ pub async fn handle_socket(
     user_id: Uuid,
     conversation_id: Uuid,
 ) -> Result<(), WsError> {
-    let (sender, mut receiver) = socket.split();
+    let (sender, receiver) = socket.split();
 
     // set up a receiver rx that takes in all updates in the redis channel corresponding to the
     // conversation the user is connecting to
@@ -59,7 +59,6 @@ pub async fn handle_socket(
     if let Err(e) = read_task.await {
         tracing::error!("Failed to join after WebSocket connection closed: {}", e);
     };
-
     write_task.abort();
 
     // TODO: read (via receiver) -> processing (via messages::handle) -> publish (via publish_message)
@@ -133,11 +132,30 @@ async fn socket_read(
     // once loop terminates, return; we should close the ws connection soon after
 }
 
+/// Reads from a receiver subscribed to a Redis channel, and directs the data into the provided
+/// sender, which is expected to be the WebSocket sink.
 async fn socket_write(
-    sender: SplitSink<WebSocket, Message>,
-    rx: mpsc::UnboundedReceiver<redis::PushInfo>,
+    mut sender: SplitSink<WebSocket, Message>,
+    mut rx: mpsc::UnboundedReceiver<redis::PushInfo>,
 ) {
     // create a channel, then create a thread to write back to the client
     // via the socket whenever anything is sent through the channel in rx;
     // for now we're simply converting the message from rx to a string and sending it through sender
+    while let Some(push_info) = rx.recv().await {
+        // we only handle push information that encodes a message
+        if let Some(msg) = redis::Msg::from_push_info(push_info) {
+            let payload: redis::RedisResult<String> = msg.get_payload();
+
+            if let Ok(msg) = payload {
+                if let Err(e) = sender.send(Message::Text(msg.into())).await {
+                    tracing::error!("Failed to send message: {}", e);
+                }
+            } else {
+                tracing::error!(
+                    "Failed reading from Redis channel: {}",
+                    payload.unwrap_err()
+                );
+            }
+        }
+    }
 }
