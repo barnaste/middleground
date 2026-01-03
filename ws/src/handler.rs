@@ -28,5 +28,9 @@ pub async fn ws_handler(
     // Verify user has access to this conversation before establishing WebSocket -- fail fast
     // TODO: complete this verification
 
-    Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, user_id, query.conversation_id)))
+    Ok(ws.on_upgrade(async move |socket| {
+        if let Err(e) = handle_socket(socket, state, user_id, query.conversation_id).await {
+            tracing::error!("WebSocket error: {}", e);
+        }
+    }))
 }

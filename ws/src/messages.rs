@@ -1,8 +1,6 @@
-// TODO: handle message type logic (send, reply, delete, edit)
-
 use chrono::{DateTime, Utc};
 use redis::Client as RedisClient;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -70,7 +68,7 @@ impl IncomingMessage {
         user_id: Uuid,
         conversation_id: Uuid,
         db: &PgPool,
-    ) -> Result<(), WsError> {
+    ) -> Result<OutgoingMessage, WsError> {
         match self {
             Self::Send { payload } => {
                 handle_send(user_id, conversation_id, payload, db).await
@@ -90,7 +88,7 @@ async fn handle_send(
     conversation_id: Uuid,
     payload: SendPayload,
     db: &PgPool,
-) -> Result<(), WsError> {
+) -> Result<OutgoingMessage, WsError> {
     todo!()
 }
 
@@ -99,7 +97,7 @@ async fn handle_edit(
     conversation_id: Uuid,
     payload: EditPayload,
     db: &PgPool,
-) -> Result<(), WsError> {
+) -> Result<OutgoingMessage, WsError> {
     todo!()
 }
 
@@ -108,14 +106,14 @@ async fn handle_delete(
     conversation_id: Uuid,
     payload: DeletePayload,
     db: &PgPool,
-) -> Result<(), WsError> {
+) -> Result<OutgoingMessage, WsError> {
     todo!()
 }
 
-async fn publish_msg(
+pub async fn publish_msg(
     conversation_id: Uuid,
     message: OutgoingMessage,
     redis: &RedisClient,
-) {
+) -> Result<(), WsError> {
     todo!()
 }
