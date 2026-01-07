@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
-use redis::Client as RedisClient;
+use db::queries::messages as query;
+use redis::{AsyncCommands, Client as RedisClient};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-use crate::error::WsError;
+use crate::error::WsResult;
 
 // Incoming message type from client
 #[derive(Deserialize)]
@@ -68,17 +69,11 @@ impl IncomingMessage {
         user_id: Uuid,
         conversation_id: Uuid,
         db: &PgPool,
-    ) -> Result<OutgoingMessage, WsError> {
+    ) -> WsResult<OutgoingMessage> {
         match self {
-            Self::Send { payload } => {
-                handle_send(user_id, conversation_id, payload, db).await
-            }
-            Self::Edit { payload } => {
-                handle_edit(user_id, conversation_id, payload, db).await
-            }
-            Self::Delete { payload } => {
-                handle_delete(user_id, conversation_id, payload, db).await
-            }
+            Self::Send { payload } => handle_send(user_id, conversation_id, payload, db).await,
+            Self::Edit { payload } => handle_edit(user_id, conversation_id, payload, db).await,
+            Self::Delete { payload } => handle_delete(user_id, conversation_id, payload, db).await,
         }
     }
 }
@@ -88,8 +83,28 @@ async fn handle_send(
     conversation_id: Uuid,
     payload: SendPayload,
     db: &PgPool,
-) -> Result<OutgoingMessage, WsError> {
-    todo!()
+) -> WsResult<OutgoingMessage> {
+    let now = Utc::now();
+
+    let message_id = query::create_message(
+        db,
+        query::CreateMessageParams {
+            conversation_id,
+            sender_id: user_id,
+            quoted_id: payload.quoted_id,
+            created_at: now,
+            content: payload.content.clone(),
+        },
+    )
+    .await?;
+
+    Ok(OutgoingMessage::Send {
+        message_id,
+        sender_id: user_id,
+        content: payload.content,
+        quoted_id: payload.quoted_id,
+        timestamp: now,
+    })
 }
 
 async fn handle_edit(
@@ -97,8 +112,27 @@ async fn handle_edit(
     conversation_id: Uuid,
     payload: EditPayload,
     db: &PgPool,
-) -> Result<OutgoingMessage, WsError> {
-    todo!()
+) -> WsResult<OutgoingMessage> {
+    let now = Utc::now();
+
+    query::edit_message(
+        db,
+        query::EditMessageParams {
+            conversation_id,
+            sender_id: user_id,
+            message_id: payload.message_id,
+            created_at: now,
+            content: payload.content.clone(),
+        },
+    )
+    .await?;
+
+    Ok(OutgoingMessage::Edit {
+        message_id: payload.message_id,
+        sender_id: user_id,
+        content: payload.content,
+        timestamp: now,
+    })
 }
 
 async fn handle_delete(
@@ -106,15 +140,39 @@ async fn handle_delete(
     conversation_id: Uuid,
     payload: DeletePayload,
     db: &PgPool,
-) -> Result<OutgoingMessage, WsError> {
-    todo!()
+) -> WsResult<OutgoingMessage> {
+    let now = Utc::now();
+
+    query::soft_delete_message(
+        db,
+        query::DeleteMessageParams {
+            conversation_id,
+            sender_id: user_id,
+            message_id: payload.message_id,
+        },
+    )
+    .await?;
+
+    Ok(OutgoingMessage::Delete {
+        message_id: payload.message_id,
+        sender_id: user_id,
+        timestamp: now,
+    })
 }
 
-// TODO: convert message to a JSON string prior to sending via redis
 pub async fn publish_msg(
     conversation_id: Uuid,
     message: OutgoingMessage,
     redis: &RedisClient,
-) -> Result<(), WsError> {
-    todo!()
+) -> WsResult<()> {
+    let mut conn = redis
+        .get_multiplexed_async_connection()
+        .await
+        .inspect_err(|e| tracing::error!("Failed to create Redis connection: {}", e))?;
+    let channel = format!("conversation:{}", conversation_id);
+    let payload = serde_json::to_string(&message)?;
+
+    conn.publish::<_, _, ()>(channel, payload).await?;
+
+    Ok(())
 }

@@ -2,6 +2,7 @@ use axum::{
     extract::{Extension, Query, State, WebSocketUpgrade},
     response::Response,
 };
+use db::queries::conversations as query;
 use serde::Deserialize;
 use shared::AppState;
 use uuid::Uuid;
@@ -26,7 +27,12 @@ pub async fn ws_handler(
     Extension(user_id): Extension<Uuid>,
 ) -> Result<Response, WsError> {
     // Verify user has access to this conversation before establishing WebSocket -- fail fast
-    // TODO: complete this verification
+    let has_access =
+        query::user_has_access(&state.db_pool, query.conversation_id, user_id).await?;
+
+    if !has_access {
+        return Err(WsError::Unauthorized);
+    }
 
     Ok(ws.on_upgrade(async move |socket| {
         if let Err(e) = handle_socket(socket, state, user_id, query.conversation_id).await {

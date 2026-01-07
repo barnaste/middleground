@@ -8,7 +8,7 @@ use tokio::sync::mpsc;
 use uuid::Uuid;
 
 use crate::{
-    error::WsError,
+    error::WsResult,
     messages::{IncomingMessage, publish_msg},
 };
 
@@ -18,7 +18,7 @@ pub async fn handle_socket(
     state: AppState,
     user_id: Uuid,
     conversation_id: Uuid,
-) -> Result<(), WsError> {
+) -> WsResult<()> {
     let (sender, receiver) = socket.split();
 
     // set up a receiver rx that takes in all updates in the redis channel corresponding to the
@@ -28,24 +28,17 @@ pub async fn handle_socket(
         // TODO: we assume RESP3 is set for redis
         let config = redis::AsyncConnectionConfig::new().set_push_sender(tx);
 
-        let mut con = match state
+        let mut conn = state
             .redis
             .clone()
             .get_multiplexed_async_connection_with_config(&config)
             .await
-        {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::error!("Failed to create Redis connection: {}", e);
-                return Err(WsError::Redis(e));
-            }
-        };
+            .inspect_err(|e| tracing::error!(error = %e, "Failed to create Redis connection"))?;
 
         let channel_name = format!("conversation:{}", conversation_id);
-        if let Err(e) = con.subscribe(&channel_name).await {
-            tracing::error!("Failed to subscribe to {}: {}", channel_name, e);
-            return Err(WsError::Redis(e));
-        }
+        conn.subscribe(&channel_name).await.inspect_err(
+            |e| tracing::error!(error = %e, "Failed to subscribe to {}", channel_name),
+        )?;
     }
 
     let write_task = tokio::spawn(socket_write(sender, rx));
@@ -56,32 +49,22 @@ pub async fn handle_socket(
         conversation_id,
     ));
 
-    if let Err(e) = read_task.await {
-        tracing::error!("Failed to join after WebSocket connection closed: {}", e);
-    };
+    let _ = read_task.await.inspect_err(
+        |e| tracing::error!(error = %e, "Failed to join after WebSocket connection closed"),
+    );
     write_task.abort();
 
-    // TODO: read (via receiver) -> processing (via messages::handle) -> publish (via publish_message)
-    //   -> read (via rx in socket_write) -> write (via sender in socket_write)
-
-    todo!()
+    Ok(())
 }
 
-// TODO: maybe we should wrap this into a websocket state (AppState -> WsState)?
 async fn socket_read(
     mut receiver: SplitStream<WebSocket>,
     state: AppState,
     user_id: Uuid,
     conversation_id: Uuid,
-) {
+) -> WsResult<()> {
     while let Some(msg) = receiver.next().await {
-        let msg = match msg {
-            Ok(msg) => msg,
-            Err(e) => {
-                tracing::error!("WebSocket error: {}", e);
-                break;
-            }
-        };
+        let msg = msg.inspect_err(|e| tracing::error!(error = %e, "WebSocket error"))?;
 
         match msg {
             // NOTE: we could return a message to the user indicating that their
@@ -108,9 +91,10 @@ async fn socket_read(
                     }
                 };
 
-                if let Err(e) = publish_msg(conversation_id, outgoing, &state.redis).await {
-                    tracing::error!("Failed to broadcast message: {}", e);
-                }
+                publish_msg(conversation_id, outgoing, &state.redis)
+                    .await
+                    .inspect_err(|e| tracing::error!(error = %e, "Failed to broadcast message"))
+                    .ok();
             }
 
             Message::Close(close) => {
@@ -129,7 +113,7 @@ async fn socket_read(
         }
     }
 
-    // once loop terminates, return; we should close the ws connection soon after
+    Ok(())
 }
 
 /// Reads from a receiver subscribed to a Redis channel, and directs the data into the provided
@@ -142,18 +126,20 @@ async fn socket_write(
     // via the socket whenever anything is sent through the channel in rx;
     // for now we're simply converting the message from rx to a string and sending it through sender
     while let Some(push_info) = rx.recv().await {
-        // we only handle push information that encodes a message
+        // we only handle push information that encodes a message;
+        // that data should already be serialized, to we just forward it
         if let Some(msg) = redis::Msg::from_push_info(push_info) {
             let payload: redis::RedisResult<String> = msg.get_payload();
 
             if let Ok(msg) = payload {
-                if let Err(e) = sender.send(Message::Text(msg.into())).await {
-                    tracing::error!("Failed to send message: {}", e);
-                }
+                sender
+                    .send(Message::Text(msg.into()))
+                    .await
+                    .inspect_err(|e| tracing::error!(error = %e, "Failed to send message"));
             } else {
                 tracing::error!(
-                    "Failed reading from Redis channel: {}",
-                    payload.unwrap_err()
+                error = %payload.unwrap_err(),
+                    "Failed reading from Redis channel"
                 );
             }
         }

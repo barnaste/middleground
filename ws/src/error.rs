@@ -9,8 +9,17 @@ pub enum WsError {
     #[error("Unauthorized")]
     Unauthorized,
 
+    #[error("Database error: {0}")]
+    Database(#[from] db::error::DbError),
+
     #[error("Redis error: {0}")]
     Redis(#[from] redis::RedisError),
+
+    #[error("JSON serialization error: {0}")]
+    Json(#[from] serde_json::Error),
+
+    #[error("WebSocket error: {0}")]
+    WebSocket(#[from] axum::Error),
 }
 
 impl IntoResponse for WsError {
@@ -23,3 +32,5 @@ impl IntoResponse for WsError {
         (status, self.to_string()).into_response()
     }
 }
+
+pub type WsResult<T> = Result<T, WsError>;

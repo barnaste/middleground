@@ -10,11 +10,12 @@ chrono.workspace = true
 futures = "0.3.31"
 redis = { workspace = true, features = ["tokio-comp"] }
 serde.workspace = true
+serde_json.workspace = true
 sqlx.workspace = true
 thiserror.workspace = true
+tracing = "0.1.44"
 tokio.workspace = true
 uuid.workspace = true
 
 shared = { path = "../shared" }
-tracing = "0.1.44"
-serde_json.workspace = true
+db = { path = "../db" }

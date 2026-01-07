@@ -15,7 +15,7 @@ pub enum DbError {
     Connection(sqlx::Error),
 
     #[error("Query execution error: {0}")]
-    Query(sqlx::Error),
+    Query(#[from] sqlx::Error),
 
     #[error("Configuration error: {0}")]
     Configuration(String),
