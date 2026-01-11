@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 use crate::auth::AuthClient;
 use crate::websocket::WebSocketClient;
 
@@ -6,9 +8,7 @@ pub struct AppState {
     pub host: String,
     pub username: String,
     pub client: AuthClient,
-    pub ws_connected: bool,
     pub ws_client: Option<WebSocketClient>,
-    pub ws_channel: Option<String>,
 }
 
 impl AppState {
@@ -17,9 +17,7 @@ impl AppState {
             host,
             username,
             client,
-            ws_connected: false,
             ws_client: None,
-            ws_channel: None,
         }
     }
 
@@ -30,22 +28,17 @@ impl AppState {
             .or_else(|| self.host.strip_prefix("https://"))
             .unwrap_or(&self.host);
 
-        let user_short = self
-            .username
-            .split('@')
-            .next()
-            .unwrap_or(&self.username);
+        let user_short = self.username.split('@').next().unwrap_or(&self.username);
 
-        let mut parts = vec![user_short, "@", host_short];
-
-        if self.ws_connected {
-            parts.push(":ws");
-            if let Some(channel) = self.ws_channel.as_ref() {
-                parts.push(":");
-                parts.push(channel);
+        format!(
+            "[{}@{}{}] > ",
+            user_short,
+            host_short,
+            if let Some(client) = &self.ws_client {
+                format!(":{}", client.conversation_id())
+            } else {
+                String::new()
             }
-        }
-
-        format!("[{}] > ", parts.join(""))
+        )
     }
 }

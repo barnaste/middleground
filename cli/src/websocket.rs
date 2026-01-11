@@ -1,12 +1,16 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::sync::{mpsc, RwLock};
 use uuid::Uuid;
+
+use crate::state::AppState;
 
 // ========================== Message Types ==========================
 
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum OutgoingMessage {
+enum OutgoingMessage {
     Send { payload: SendPayload },
     Edit { payload: EditPayload },
     Delete { payload: DeletePayload },
@@ -14,21 +18,21 @@ pub enum OutgoingMessage {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SendPayload {
+struct SendPayload {
     pub content: String,
     pub quoted_id: Option<Uuid>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct EditPayload {
+struct EditPayload {
     pub message_id: Uuid,
     pub content: String,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DeletePayload {
+struct DeletePayload {
     pub message_id: Uuid,
 }
 
@@ -62,28 +66,34 @@ enum IncomingMessage {
 // ========================== WebSocket Client ==========================
 
 pub struct WebSocketClient {
-    pub write: mpsc::UnboundedSender<OutgoingMessage>,
+    conversation_id: Uuid,
+    write: mpsc::UnboundedSender<OutgoingMessage>,
 }
 
 impl WebSocketClient {
-    pub async fn connect() {
+    pub async fn connect(state: Arc<RwLock<AppState>>, channel: Uuid) -> Result<Self> {
+        // do websocket handshake using tokio tungstenite
         todo!()
     }
 
-    pub async fn disconnect() {
+    pub async fn disconnect(self, state: Arc<RwLock<AppState>>) {
+        drop(self.write);
+    }
+
+    pub fn send(&self, content: String, quoted_id: Option<Uuid>) -> Result<()> {
         todo!()
     }
 
-    pub async fn send() {
+    pub fn edit(&self, message_id: Uuid, content: String) -> Result<()> {
         todo!()
     }
 
-    pub async fn edit() {
+    pub fn delete(&self, message_id: Uuid) -> Result<()> {
         todo!()
     }
 
-    pub async fn delete() {
-        todo!()
+    pub fn conversation_id(&self) -> Uuid {
+        self.conversation_id
     }
 }
 
