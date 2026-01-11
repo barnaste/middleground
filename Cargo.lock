@@ -401,6 +401,7 @@ dependencies = [
  "rustyline",
  "serde",
  "tokio",
+ "uuid",
 ]
 
 [[package]]

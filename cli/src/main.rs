@@ -46,18 +46,16 @@ fn show_help() {
     println!();
 
     println!("{}", "WebSocket:".bright_yellow());
-    println!("  ws connect [url]        Connect to WebSocket endpoint");
+    println!("  ws connect <channel>    Connect to WebSocket endpoint ");
     println!("  ws disconnect           Disconnect from WebSocket");
     println!("  ws status               Show WebSocket connection status");
     println!();
 
     println!("{}", "Messaging:".bright_yellow());
-    println!("  subscribe <channel>     Subscribe to a channel (starts live feed)");
-    println!("  unsubscribe             Unsubscribe from channel");
     println!("  send <msg>              Send a message to current channel");
-    println!("  reply <msgId> <msg>     Reply to a message in current channel");
-    println!("  edit <msgId> <msg>      Edit an owned message");
-    println!("  delete <msgId>          Delete an owned message");
+    println!("  reply <msg_id> <msg>    Reply to a message in current channel");
+    println!("  edit <msg_id> <msg>     Edit an owned message");
+    println!("  delete <msg_id>         Delete an owned message");
     println!("  messages [limit]        Show recent messages");
     println!();
 }
@@ -105,9 +103,9 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
             std::process::exit(0);
         }
 
-        ShellCommand::Unknown(cmd) => {
-            if !cmd.is_empty() {
-                println!("{} Unknown command: '{}'", "✗".red(), cmd);
+        ShellCommand::Unknown(err) => {
+            if !err.is_empty() {
+                println!("{} {}", "✗".red(), err);
                 println!("Type {} for available commands\n", "'help'".bright_yellow());
             }
         }

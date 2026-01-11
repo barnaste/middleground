@@ -12,3 +12,4 @@ reqwest = { workspace = true, features = ["cookies", "json"] }
 rustyline = "17.0.2"
 serde.workspace = true
 tokio = { workspace = true, features = ["full"] }
+uuid.workspace = true
