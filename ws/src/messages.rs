@@ -11,7 +11,7 @@ use crate::error::WsResult;
 
 #[derive(Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum IncomingMessage {
+enum IncomingMessage {
     Send { payload: SendPayload },
     Edit { payload: EditPayload },
     Delete { payload: DeletePayload },

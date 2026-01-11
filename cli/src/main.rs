@@ -73,7 +73,11 @@ async fn show_status(state: &Arc<RwLock<AppState>>) {
         } else {
             "✗".red()
         },
-        state.host.replace("http", "ws") + "/ws",
+        state
+            .host
+            .replace("http://", "ws://")
+            .replace("https://", "wss://")
+            + "/ws",
     );
 
     if let Some(client) = &state.ws_client {
@@ -103,7 +107,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
                 client.disconnect(state.clone()).await;
             }
 
-            state_write.client.logout().await?;
+            state_write.auth_client.logout().await?;
             println!("{} Goodbye!", "✓".green());
             std::process::exit(0);
         }

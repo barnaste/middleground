@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use crate::auth::AuthClient;
 use crate::websocket::WebSocketClient;
 
@@ -7,7 +5,7 @@ use crate::websocket::WebSocketClient;
 pub struct AppState {
     pub host: String,
     pub username: String,
-    pub client: AuthClient,
+    pub auth_client: AuthClient,
     pub ws_client: Option<WebSocketClient>,
 }
 
@@ -16,7 +14,7 @@ impl AppState {
         Self {
             host,
             username,
-            client,
+            auth_client: client,
             ws_client: None,
         }
     }

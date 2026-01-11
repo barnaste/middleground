@@ -178,5 +178,3 @@ impl AuthClient {
         }
     }
 }
-
-// TODO: refresh_token, logout via reqwest
