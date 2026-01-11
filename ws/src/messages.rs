@@ -7,9 +7,10 @@ use uuid::Uuid;
 
 use crate::error::WsResult;
 
-// Incoming message type from client
+// ========================== Requests ==========================
+
 #[derive(Deserialize)]
-#[serde(tag = "type", rename_all = "lowercase")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum IncomingMessage {
     Send { payload: SendPayload },
     Edit { payload: EditPayload },
@@ -35,6 +36,8 @@ pub struct EditPayload {
 pub struct DeletePayload {
     pub message_id: Uuid,
 }
+
+// ========================== Responses ==========================
 
 #[derive(Serialize)]
 #[serde(
@@ -77,6 +80,8 @@ impl IncomingMessage {
         }
     }
 }
+
+// ========================== Handlers ==========================
 
 async fn handle_send(
     user_id: Uuid,

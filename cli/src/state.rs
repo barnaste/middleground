@@ -1,4 +1,5 @@
 use crate::auth::AuthClient;
+use crate::websocket::WebSocketClient;
 
 /// Application state
 pub struct AppState {
@@ -6,7 +7,8 @@ pub struct AppState {
     pub username: String,
     pub client: AuthClient,
     pub ws_connected: bool,
-    pub current_channel: Option<String>, // TODO: need a handle to the reading thread
+    pub ws_client: Option<WebSocketClient>,
+    pub ws_channel: Option<String>,
 }
 
 impl AppState {
@@ -16,7 +18,8 @@ impl AppState {
             username,
             client,
             ws_connected: false,
-            current_channel: None,
+            ws_client: None,
+            ws_channel: None,
         }
     }
 
@@ -37,7 +40,7 @@ impl AppState {
 
         if self.ws_connected {
             parts.push(":ws");
-            if let Some(channel) = self.current_channel.as_ref() {
+            if let Some(channel) = self.ws_channel.as_ref() {
                 parts.push(":");
                 parts.push(channel);
             }

@@ -3,6 +3,7 @@
 mod auth;
 mod shellcmd;
 mod state;
+mod websocket;
 
 use anyhow::Result;
 use auth::AuthClient;
@@ -111,7 +112,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         _ => {
-            println!("Feature is not yet implemented.");
+            println!("Feature is not yet implemented.\n");
         }
     }
 
