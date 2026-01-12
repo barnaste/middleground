@@ -104,7 +104,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
 
             // disconnect the WebSocket client if it's currently connected
             if let Some(client) = state_write.ws_client.take() {
-                client.disconnect(state.clone()).await;
+                client.disconnect().await;
             }
 
             state_write.auth_client.logout().await?;
@@ -142,7 +142,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
             };
 
             if let Some(client) = client {
-                client.disconnect(state.clone()).await;
+                client.disconnect().await;
             } else {
                 println!(
                     "{} Not connected. Use 'ws connect <channel> first",

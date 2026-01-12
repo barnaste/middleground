@@ -19,7 +19,6 @@ pub struct WsQuery {
 ///
 /// Expects the ID of the conversation to connect to as a query parameter,
 /// and the sender's user ID from middleware, as a request extension.
-// TODO: fetch user id
 pub async fn ws_handler(
     ws: WebSocketUpgrade,
     Query(query): Query<WsQuery>,
@@ -27,6 +26,7 @@ pub async fn ws_handler(
     Extension(user_id): Extension<Uuid>,
 ) -> Result<Response, WsError> {
     // Verify user has access to this conversation before establishing WebSocket -- fail fast
+    println!("User {} has attempted a connection", user_id); // TODO: temp
     let has_access =
         query::user_has_access(&state.db_pool, query.conversation_id, user_id).await?;
 

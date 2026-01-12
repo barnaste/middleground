@@ -11,7 +11,6 @@ pub enum ShellCommand {
     // websocket commands
     WsConnect(Uuid),
     WsDisconnect,
-    WsStatus,
 
     // messaging commands
     Send(String),
