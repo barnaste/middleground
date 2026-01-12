@@ -132,7 +132,7 @@ async fn socket_write(
             let payload: redis::RedisResult<String> = msg.get_payload();
 
             if let Ok(msg) = payload {
-                sender
+                let _ = sender
                     .send(Message::Text(msg.into()))
                     .await
                     .inspect_err(|e| tracing::error!(error = %e, "Failed to send message"));

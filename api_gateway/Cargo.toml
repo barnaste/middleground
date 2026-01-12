@@ -7,9 +7,12 @@ authors.workspace = true
 [dependencies]
 axum.workspace = true
 dotenvy.workspace = true
+redis.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
 tower.workspace = true
 
 auth = { path = "../auth" }
 db = { path = "../db" }
+shared = { path = "../shared" }
+ws = { path = "../ws" }

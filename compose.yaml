@@ -1,0 +1,19 @@
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: middleground-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - middleground
+    volumes:
+      - redis_data:/data
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  middleground:
+    driver: bridge

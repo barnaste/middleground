@@ -111,9 +111,12 @@ dependencies = [
  "axum",
  "db",
  "dotenvy",
+ "redis",
+ "shared",
  "sqlx",
  "tokio",
  "tower 0.4.13",
+ "ws",
 ]
 
 [[package]]
