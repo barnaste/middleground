@@ -31,7 +31,6 @@ use crate::{dto, jwt};
 ///         authenticator.clone(),
 ///         auth_standard
 ///     ))
-///     .with_state(authenticator);
 /// ```
 pub async fn auth_standard<A: Authenticator>(
     State(authenticator): State<A>,
@@ -92,7 +91,6 @@ pub async fn auth_standard<A: Authenticator>(
 ///         authenticator.clone(),
 ///         auth_strict
 ///     ))
-///     .with_state(authenticator);
 /// ```
 pub async fn auth_strict<A: Authenticator>(
     State(authenticator): State<A>,

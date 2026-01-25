@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{Message, protocol::CloseFrame},
+    tungstenite::{Message, protocol::CloseFrame, client::IntoClientRequest},
 };
 use uuid::Uuid;
 
@@ -110,11 +110,10 @@ impl WebSocketClient {
         let url = format!("{}/ws?conversation_id={}", base_url, conversation_id);
         drop(state_read);
 
-        let mut request = http::Request::builder()
-            .uri(url)
-            .body(())
+        let mut request = url.into_client_request()
             .map_err(|e| anyhow::anyhow!("Failed to build request: {}", e))?;
         request.headers_mut().extend(headers);
+        println!("{:?}", request);
 
         let (ws_stream, _) = connect_async(request)
             .await

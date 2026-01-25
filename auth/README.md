@@ -113,7 +113,6 @@ let app = Router::new()
         authenticator.clone(),
         auth_standard  // or auth_strict for backend verification
     ))
-    .with_state(authenticator);
 ```
 
 ## Architecture

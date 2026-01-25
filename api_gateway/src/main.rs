@@ -2,7 +2,10 @@
 //!
 //! Configures and starts the HTTP server with session management.
 
-use auth::models::SbAuthenticator;
+use auth::{
+    middleware::{auth_standard, auth_strict},
+    models::SbAuthenticator,
+};
 use axum::Router;
 use redis::{Client as RedisClient, IntoConnectionInfo, ProtocolVersion, RedisConnectionInfo};
 use shared::AppState;
@@ -43,11 +46,27 @@ async fn create_router() -> Router {
 
     let state = AppState { db_pool, redis };
 
+    // NOTE: list all routes that need standard protection here
+    let standard_prot = Router::new()
+        .merge(ws::router(state))
+        .layer(axum::middleware::from_fn_with_state(
+            authenticator.clone(),
+            auth_standard::<SbAuthenticator>,
+        ));
+
+    // NOTE: list all routes that need strict protection here
+    let strict_prot = Router::new()
+        .layer(axum::middleware::from_fn_with_state(
+            authenticator.clone(),
+            auth_strict::<SbAuthenticator>,
+        ));
+
     // compose all service routers
+    // TODO: rate limiting
     Router::new()
         .nest("/auth", auth::router(authenticator.clone()))
-        .merge(ws::router(state))
-    // TODO: rate limiting
+        .merge(standard_prot)
+        .merge(strict_prot)
 }
 
 /// The back-end entry point.
@@ -69,7 +88,7 @@ async fn create_router() -> Router {
 ///
 /// # Redis Protocol
 ///
-/// This application uses RESP3 (Redis Serialization Protocol 3) for pub/sub messaging. 
+/// This application uses RESP3 (Redis Serialization Protocol 3) for pub/sub messaging.
 /// RESP3 provides push-based notifications which are essential for efficient WebSocket
 /// broadcasting.
 #[tokio::main]
@@ -84,7 +103,7 @@ async fn main() {
 
     println!("Server listening on {}", addr);
     println!("  - Auth endpoints: http://{}/auth/*", addr);
-    println!("  - WebSocket endpoint: http://{}/ws", addr);
+    println!("  - WebSocket endpoint: ws://{}/ws", addr);
 
     axum::serve(listener, create_router().await).await.unwrap();
 }
