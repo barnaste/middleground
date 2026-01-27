@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::AuthError;
 
+pub use jsonwebtoken::Algorithm;
+
 /// JWT claims structure for access tokens.
 #[derive(Deserialize, Serialize)]
 pub struct Claims {
@@ -34,15 +36,23 @@ pub fn extract_jwt_from_headers(headers: &HeaderMap) -> Result<String, AuthError
     Ok(token.to_string())
 }
 
-/// Verify JWT using HMAC signature verification.
+/// Verify JWT using the specified algorithm for signature verification.
 ///
 /// Verifies the token signature and expiration time.
-pub fn validate_jwt_hmac(token: &str, secret: &str) -> Result<Claims, AuthError> {
+pub fn validate_jwt(
+    token: &str,
+    secret: &str,
+    algorithms: Vec<Algorithm>,
+) -> Result<Claims, AuthError> {
     let key = DecodingKey::from_secret(secret.as_ref());
 
     // decode will result in an error if the token or signature is invalid,
     // the token has invalid base64, or validation of a reserved claim fails
-    let token = decode::<Claims>(token, &key, &Validation::default())
+    let mut validation = Validation::default();
+    validation.algorithms = algorithms.clone(); // TODO: unclone when done
+
+    let token = decode::<Claims>(token, &key, &validation)
+        .inspect_err(|e| println!("{:?}, {:?}, {:?}", e, algorithms, token)) // TODO: temporary
         .map_err(|e| AuthError::InvalidToken(e.to_string()))?;
     Ok(token.claims)
 }
@@ -112,7 +122,7 @@ mod tests {
         let secret = "test-secret";
         let token = create_test_jwt(secret, 3600).unwrap();
 
-        let result = validate_jwt_hmac(&token, secret);
+        let result = validate_jwt(&token, secret, vec![Algorithm::HS256]);
         assert!(result.is_ok());
         assert_eq!(result.unwrap().sub, "user");
     }
@@ -122,7 +132,7 @@ mod tests {
         let secret = "test-secret";
         let token = create_test_jwt(secret, -3600).unwrap();
 
-        let result = validate_jwt_hmac(&token, secret);
+        let result = validate_jwt(&token, secret, vec![Algorithm::HS256]);
         assert!(matches!(result, Err(AuthError::InvalidToken(_))));
     }
 
@@ -149,14 +159,14 @@ mod tests {
             parts[2]
         );
 
-        let result = validate_jwt_hmac(&tampered_token, secret);
+        let result = validate_jwt(&tampered_token, secret, vec![Algorithm::HS256]);
         assert!(matches!(result, Err(AuthError::InvalidToken(_))));
     }
 
     #[test]
     fn test_validate_jwt_hmac_wrong_secret() {
         let token = create_test_jwt("correct-secret", 3600).unwrap();
-        let result = validate_jwt_hmac(&token, "wrong-secret");
+        let result = validate_jwt(&token, "wrong-secret", vec![Algorithm::HS256]);
         assert!(matches!(result, Err(AuthError::InvalidToken(_))));
     }
 }

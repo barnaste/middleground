@@ -5,6 +5,7 @@ use axum::extract::{Request, State};
 use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::Response;
+use jsonwebtoken::Algorithm;
 
 use crate::models::Authenticator;
 use crate::{dto, jwt};
@@ -46,7 +47,12 @@ pub async fn auth_standard<A: Authenticator>(
         )
     })?;
 
-    let claims = jwt::validate_jwt_hmac(&token, authenticator.jwt_secret()).map_err(|e| {
+    let claims = jwt::validate_jwt(
+        &token,
+        authenticator.jwt_secret(),
+        vec![Algorithm::HS256, Algorithm::ES256],
+    )
+    .map_err(|e| {
         (
             StatusCode::UNAUTHORIZED,
             Json(dto::ErrorResponse {

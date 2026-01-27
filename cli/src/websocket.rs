@@ -113,7 +113,6 @@ impl WebSocketClient {
         let mut request = url.into_client_request()
             .map_err(|e| anyhow::anyhow!("Failed to build request: {}", e))?;
         request.headers_mut().extend(headers);
-        println!("{:?}", request);
 
         let (ws_stream, _) = connect_async(request)
             .await
