@@ -25,7 +25,6 @@ pub async fn handle_socket(
     // conversation the user is connecting to
     let (tx, rx) = mpsc::unbounded_channel();
     {
-        // TODO: we assume RESP3 is set for redis
         let config = redis::AsyncConnectionConfig::new().set_push_sender(tx);
 
         let mut conn = state

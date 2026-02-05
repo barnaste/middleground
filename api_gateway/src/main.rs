@@ -62,7 +62,6 @@ async fn create_router() -> Router {
         ));
 
     // compose all service routers
-    // TODO: rate limiting
     Router::new()
         .nest("/auth", auth::router(authenticator.clone()))
         .merge(standard_prot)
@@ -76,7 +75,6 @@ async fn create_router() -> Router {
 /// Authentication (currently uses Supabase):
 /// - `SUPABASE_URL`
 /// - `SUPABASE_API_KEY`
-/// - `SUPABASE_JWT_SECRET`
 ///
 /// Database (PostgreSQL):
 /// - `DATABASE_URL` - PostgreSQL connection string

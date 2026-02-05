@@ -26,7 +26,6 @@ pub async fn ws_handler(
     Extension(user_id): Extension<Uuid>,
 ) -> Result<Response, WsError> {
     // Verify user has access to this conversation before establishing WebSocket -- fail fast
-    tracing::info!("ws: User {} has attempted attempted to connect", user_id); // TODO: temp
     let has_access = query::user_has_access(&state.db_pool, query.conversation_id, user_id)
         .await
         .inspect_err(|e| tracing::error!("Database Error: {}", e))?;

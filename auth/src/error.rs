@@ -14,7 +14,4 @@ pub enum AuthError {
 
     #[error("Invalid authorization header format")]
     InvalidAuthHeader,
-
-    #[error("Invalid JWT token: {0}")]
-    InvalidToken(String),
 }

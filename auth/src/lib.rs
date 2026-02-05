@@ -33,7 +33,6 @@ use axum::{Router, routing::post};
 
 mod dto;
 mod handlers;
-mod jwt;
 mod error;
 
 pub mod models;

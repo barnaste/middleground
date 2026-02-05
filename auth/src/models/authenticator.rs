@@ -22,6 +22,13 @@ pub trait AuthSession {
 /// This trait defines the standard authentication operations needed for a complete
 /// authentication system, including OTP sending/verification, session management,
 /// and token operations.
+///
+/// # Implementation Note
+///
+/// Different authentication backends may use different JWT verification methods:
+/// - HMAC-based (HS256): Uses a shared secret
+/// - JWKS-based (ES256): Uses public key cryptography
+/// - Backend verification: Validates against authentication server
 #[async_trait]
 pub trait Authenticator: Clone + Send + Sync + 'static {
 
@@ -30,12 +37,6 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
 
     /// The session type containing authentication tokens and metadata.
     type Session: AuthSession + Send + Sync + 'static;
-
-    /// Returns the JWT secret used for token signatures.
-    ///
-    /// This secret is used by middleware for local JWT validation without
-    /// requiring a call to the authentication backend.
-    fn jwt_secret(&self) -> &str;
 
     /// Send an OTP (One-Time Password) to the specified contact.
     ///
@@ -81,14 +82,12 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
 
     /// Verify that an access token is valid and return the associated user ID.
     ///
-    /// This method performs strict verification by checking both the token's
-    /// cryptographic validity and its status in the authentication backend
-    /// (e.g. checking if the associated session still exists in the database).
+    /// This method validates the token cryptographically (signature and expiration).
+    /// For JWKS-based implementations, this should verify the JWT using public keys.
+    /// For HMAC-based implementations, this verifies using the shared secret.
     ///
-    /// Use this method when you need the highest level of security assurance,
-    /// such as for administrative operations or sensitive data access. Otherwise,
-    /// JWT validation is not implementation-specific but instead encryption 
-    /// algorithm specific, so that `crate::verify::validate_jwt_hmac` can be used.
+    /// This method does NOT check if the session still exists in the backend database.
+    /// Use this for standard authentication where performance is important.
     ///
     /// # Arguments
     /// * `access_token` - The access token to verify
@@ -97,4 +96,26 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     /// * `Ok(uuid::Uuid)` with the user ID if the token is valid
     /// * `Err(Self::Error)` if the token is invalid or verification failed
     async fn verify_token(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error>;
+
+    /// Strictly verify that an access token is valid and its session still exists.
+    ///
+    /// This method performs validation by checking with the authentication backend
+    /// to ensure the session is still active. This is slower but provides stronger 
+    /// guarantees that the token represents a valid, active session.
+    ///
+    /// Use this for sensitive operations where you need absolute certainty that
+    /// the session hasn't been revoked.
+    ///
+    /// # Arguments
+    /// * `access_token` - The access token to verify
+    ///
+    /// # Returns
+    /// * `Ok(uuid::Uuid)` with the user ID if the token is valid and session exists
+    /// * `Err(Self::Error)` if the token is invalid, verification failed, or session doesn't exist
+    ///
+    /// # Performance
+    ///
+    /// This method typically makes a network call to the authentication backend, 
+    /// adding 50-200ms latency. Use sparingly for critical operations.
+    async fn verify_token_strict(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error>;
 }

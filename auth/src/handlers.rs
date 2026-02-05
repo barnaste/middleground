@@ -1,8 +1,8 @@
 //! HTTP handlers for authentication endpoints.
 
 use crate::dto::*;
-use crate::jwt;
 use crate::models::Authenticator;
+use crate::middleware;
 
 use axum::{
     Json,
@@ -57,7 +57,7 @@ pub async fn logout<A: Authenticator>(
     State(authenticator): State<A>,
     headers: HeaderMap,
 ) -> Result<Json<MessageResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let token = jwt::extract_jwt_from_headers(&headers).map_err(|e| {
+    let token = middleware::extract_jwt_from_headers(&headers).map_err(|e| {
         (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {
@@ -85,7 +85,7 @@ pub async fn refresh_token<A: Authenticator>(
     State(authenticator): State<A>,
     headers: HeaderMap,
 ) -> Result<Json<AuthResponse>, (StatusCode, Json<ErrorResponse>)> {
-    let refresh_token = jwt::extract_jwt_from_headers(&headers).map_err(|e| {
+    let refresh_token = middleware::extract_jwt_from_headers(&headers).map_err(|e| {
         (
             StatusCode::BAD_REQUEST,
             Json(ErrorResponse {

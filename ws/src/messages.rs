@@ -9,7 +9,7 @@ use crate::error::WsResult;
 
 // ========================== Requests ==========================
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum IncomingMessage {
     Send { payload: SendPayload },
@@ -17,21 +17,21 @@ pub enum IncomingMessage {
     Delete { payload: DeletePayload },
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct SendPayload {
     pub content: String,
     pub quoted_id: Option<Uuid>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct EditPayload {
     pub message_id: Uuid,
     pub content: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct DeletePayload {
     pub message_id: Uuid,
@@ -39,7 +39,7 @@ pub struct DeletePayload {
 
 // ========================== Responses ==========================
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 #[serde(
     tag = "type",
     rename_all = "camelCase",

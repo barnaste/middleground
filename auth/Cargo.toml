@@ -8,6 +8,7 @@ description = "JWT-based authentication service with OTP support"
 [dependencies]
 axum.workspace = true
 dotenvy.workspace = true
+reqwest.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
@@ -15,9 +16,6 @@ tokio.workspace = true
 uuid.workspace = true
 
 async-trait = "0.1.88"
-jsonwebtoken = "9.3.1"
 supabase-auth = "0.10.13"
-
-[dev-dependencies]
-base64 = "0.22.1"
-tokio-test = "0.4.4"
+tracing = "0.1.44"
+jsonwebtoken = { version = "10.3.0", features = ["rust_crypto"] }

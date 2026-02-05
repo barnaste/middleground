@@ -1,8 +1,15 @@
 # Auth
 
-A flexible JWT-based authentication library for Axum web applications centred around OTP (One-Time Password) verification.
+A flexible JWT-based authentication library for Axum web applications centred around OTP (One-Time Password) verification with modern JWKS support.
 
-This crate provides a complete authentication solution with OTP-based passwordless login, JWT token management (access and refresh tokens), and pluggable authentication backends. It includes a production-ready Supabase integration and two middleware options for route protection.
+This crate provides a complete authentication solution with OTP-based passwordless login, JWT token management (access and refresh tokens), and pluggable authentication backends. It includes a production-ready Supabase integration using JWKS (JSON Web Key Set) for secure token verification, and two middleware options for route protection.
+
+## What's New: JWKS Support
+The authenticator now uses Supabase's modern JWKS endpoint for JWT verification instead of the legacy HMAC-based approach. This provides
+- *Better Security:* Uses public key cryptography instead of shared secrets
+- *Automatic Key Rotation:* Handles Supabase's key rotation without downtime
+- *Performance:* Caches public keys for 1 hour, reducing API calls
+- *Standards Compliance:* Follows OAuth 2.0 / OpenID Connect best practices
 
 ## Quick Start
 
@@ -40,8 +47,9 @@ When using the Supabase backend, configure the following environment variables:
 ```bash
 SUPABASE_URL=your_project_url
 SUPABASE_API_KEY=your_api_key
-SUPABASE_JWT_SECRET=your_jwt_secret
 ```
+
+**Note:** The legacy `SUPABASE_JWT_SECRET` is no longer required.
 
 ## Authentication Flow
 
@@ -91,13 +99,17 @@ Authorization: Bearer <access_token>
 
 ## Protecting Routes
 
-The crate provides two middleware options for protecting routes. Standard middleware performs fast local JWT validation using HMAC signature verification. It is ideal for most use cases, particularly those that do not mutate state. Strict middleware additionally validates tokens against the authentication backend to ensure the session is still active, providing stronger security at the cost of performance. Use this for sensitive operations like administrative functions.
+The crate provides two middleware options for protecting routes. 
+Standard middleware performs fast local JWT validation. 
+It is ideal for most use cases, particularly those that do not mutate state. 
+Strict middleware may provide additional guarantees, such as validating sessions are still active in the database, providing stronger security at the cost of performance. 
+Use this for sensitive operations like administrative functions.
 
 Both middleware options validate the JWT and insert the user's UUID into request extensions, making it available to your handlers.
 
 ```rust
 use axum::{Router, routing::get, middleware, Extension};
-use auth::middleware::auth_standard;
+use auth::{middleware::auth_standard, models::SbAuthenticator};
 use uuid::Uuid;
 
 async fn protected_handler(
@@ -115,6 +127,8 @@ let app = Router::new()
     ))
 ```
 
+*Notice:* The `models::SbAuthenticator` type does not support `auth_standard` protection. In order to use both protection options, please define your own type with the `Authenticator` trait.
+
 ## Architecture
 
 The crate is built around two core traits that define the authentication interface. `Authenticator` defines the operations an authentication backend must support: sending OTPs, verifying them, managing sessions, and validating tokens. `AuthSession` represents an authenticated session containing access and refresh tokens along with expiration information.
@@ -129,12 +143,12 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     type Error: std::error::Error + Send + Sync + 'static;
     type Session: AuthSession + Send + Sync + 'static;
 
-    fn jwt_secret(&self) -> &str;
     async fn send_otp(&self, contact: &str) -> Result<(), Self::Error>;
     async fn verify_otp(&self, contact: &str, token: &str) -> Result<Self::Session, Self::Error>;
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error>;
     async fn refresh_token(&self, refresh_token: &str) -> Result<Self::Session, Self::Error>;
     async fn verify_token(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error>;
+    async fn verify_token_strict(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error>;
 }
 
 pub trait AuthSession {
@@ -169,7 +183,6 @@ The crate uses type-safe errors throughout. The `AuthError` enum covers JWT-rela
 pub enum AuthError {
     MissingAuthHeader,
     InvalidAuthHeader,
-    InvalidToken(String),
 }
 ```
 
