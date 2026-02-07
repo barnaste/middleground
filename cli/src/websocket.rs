@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tokio::sync::{RwLock, mpsc};
 use tokio_tungstenite::{
     connect_async,
-    tungstenite::{Message, protocol::CloseFrame, client::IntoClientRequest},
+    tungstenite::{Message, client::IntoClientRequest, protocol::CloseFrame},
 };
 use uuid::Uuid;
 
@@ -54,8 +54,8 @@ struct DeletePayload {
 #[derive(Deserialize)]
 #[serde(
     tag = "type",
-    rename_all = "snake_case",
-    rename_all_fields = "snake_case"
+    rename_all = "camelCase",
+    rename_all_fields = "camelCase"
 )]
 enum IncomingMessage {
     Send {
@@ -110,7 +110,8 @@ impl WebSocketClient {
         let url = format!("{}/ws?conversation_id={}", base_url, conversation_id);
         drop(state_read);
 
-        let mut request = url.into_client_request()
+        let mut request = url
+            .into_client_request()
             .map_err(|e| anyhow::anyhow!("Failed to build request: {}", e))?;
         request.headers_mut().extend(headers);
 
@@ -185,17 +186,19 @@ async fn handle_incoming(
 ) {
     while let Some(msg) = ws_receiver.next().await {
         match msg {
-            Ok(Message::Text(text)) => match serde_json::from_str::<IncomingMessage>(&text) {
-                Ok(msg) => {
-                    let _ = display_tx.send(DisplayCommand::Message(msg));
+            Ok(Message::Text(text)) => {
+                match serde_json::from_str::<IncomingMessage>(&text) {
+                    Ok(msg) => {
+                        let _ = display_tx.send(DisplayCommand::Message(msg));
+                    }
+                    Err(e) => {
+                        let _ = display_tx.send(DisplayCommand::Error(format!(
+                            "Failed to parse message: {}",
+                            e
+                        )));
+                    }
                 }
-                Err(e) => {
-                    let _ = display_tx.send(DisplayCommand::Error(format!(
-                        "Failed to parse message: {}",
-                        e
-                    )));
-                }
-            },
+            }
 
             Ok(Message::Close(frame)) => {
                 if let Some(CloseFrame { code, reason }) = frame {
@@ -306,12 +309,12 @@ async fn display_message(msg: IncomingMessage) {
         } => {
             // format: timestamp [sender_id][message_id][quoted_id?] content
             let mut ids = vec![
-                format!("[{}]", short_uuid(sender_id)),
-                format!("[{}]", short_uuid(message_id)),
+                format!("[{}{}]", "usr:".dimmed(), short_uuid(sender_id)),
+                format!("[{}{}]", "msg:".dimmed(), short_uuid(message_id)),
             ];
 
             if let Some(qid) = quoted_id {
-                ids.push(format!("[{}]", short_uuid(qid)));
+                ids.push(format!("[{}{}]", "qot:".dimmed(), short_uuid(qid)));
             }
 
             println!(
@@ -330,9 +333,11 @@ async fn display_message(msg: IncomingMessage) {
         } => {
             // format: timestamp [sender_id][message_id] edited: content
             println!(
-                "{} [{}][{}] {} {}",
+                "{} [{}{}][{}{}] {} {}",
                 format_timestamp(&timestamp).dimmed(),
+                "usr:".dimmed(),
                 short_uuid(sender_id),
+                "msg:".dimmed(),
                 short_uuid(message_id),
                 "edited".dimmed(),
                 content
@@ -346,9 +351,11 @@ async fn display_message(msg: IncomingMessage) {
         } => {
             // format: timestamp [sender_id][message_id] == message deleted ==
             println!(
-                "{} [{}][{}] {}",
+                "{} [{}{}][{}{}] {}",
                 format_timestamp(&timestamp).dimmed(),
+                "usr:".dimmed(),
                 short_uuid(sender_id),
+                "msg:".dimmed(),
                 short_uuid(message_id),
                 "== message deleted ==".red().dimmed()
             );

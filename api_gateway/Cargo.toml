@@ -12,6 +12,8 @@ sqlx.workspace = true
 tokio.workspace = true
 tower.workspace = true
 
+tracing-subscriber = "0.3.22"
+
 auth = { path = "../auth" }
 db = { path = "../db" }
 shared = { path = "../shared" }

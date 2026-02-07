@@ -33,7 +33,7 @@ impl AppState {
             user_short,
             host_short,
             if let Some(client) = &self.ws_client {
-                format!(":{}", client.conversation_id())
+                format!(":{}", &client.conversation_id().to_string()[..8])
             } else {
                 String::new()
             }

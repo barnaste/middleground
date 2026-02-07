@@ -17,7 +17,7 @@ pub enum ShellCommand {
     Reply(Uuid, String),
     Edit(Uuid, String),
     Delete(Uuid),
-    Messages(Option<usize>),
+    // Messages(Option<usize>),
 
     // unknown
     Unknown(String),
@@ -105,10 +105,11 @@ impl ShellCommand {
                 }
             }
 
-            "messages" => {
-                let limit = parts.get(1).and_then(|s| s.parse().ok());
-                ShellCommand::Messages(limit)
-            }
+            // NOTE: add when messages endpoint is available!
+            // "messages" => {
+            //     let limit = parts.get(1).and_then(|s| s.parse().ok());
+            //     ShellCommand::Messages(limit)
+            // }
 
             _ => unknown_cmd,
         }

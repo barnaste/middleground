@@ -213,10 +213,6 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
                 println!("Type {} for available commands\n", "'help'".bright_yellow());
             }
         }
-
-        _ => {
-            println!("Feature is not yet implemented.\n");
-        }
     }
 
     Ok(())

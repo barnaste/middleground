@@ -24,21 +24,19 @@ pub async fn handle_socket(
     // set up a receiver rx that takes in all updates in the redis channel corresponding to the
     // conversation the user is connecting to
     let (tx, rx) = mpsc::unbounded_channel();
-    {
-        let config = redis::AsyncConnectionConfig::new().set_push_sender(tx);
+    let config = redis::AsyncConnectionConfig::new().set_push_sender(tx);
 
-        let mut conn = state
-            .redis
-            .clone()
-            .get_multiplexed_async_connection_with_config(&config)
-            .await
-            .inspect_err(|e| tracing::error!(error = %e, "Failed to create Redis connection"))?;
+    let mut conn = state
+        .redis
+        .clone()
+        .get_multiplexed_async_connection_with_config(&config)
+        .await
+        .inspect_err(|e| tracing::error!(error = %e, "Failed to create Redis connection"))?;
 
-        let channel_name = format!("conversation:{}", conversation_id);
-        conn.subscribe(&channel_name).await.inspect_err(
-            |e| tracing::error!(error = %e, "Failed to subscribe to {}", channel_name),
-        )?;
-    }
+    let channel_name = format!("conversation:{}", conversation_id);
+    conn.subscribe(&channel_name)
+        .await
+        .inspect_err(|e| tracing::error!(error = %e, "Failed to subscribe to {}", channel_name))?;
 
     let write_task = tokio::spawn(socket_write(sender, rx));
     let read_task = tokio::spawn(socket_read(

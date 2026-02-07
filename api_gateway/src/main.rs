@@ -103,5 +103,6 @@ async fn main() {
     println!("  - Auth endpoints: http://{}/auth/*", addr);
     println!("  - WebSocket endpoint: ws://{}/ws", addr);
 
+    tracing_subscriber::fmt::init();
     axum::serve(listener, create_router().await).await.unwrap();
 }
