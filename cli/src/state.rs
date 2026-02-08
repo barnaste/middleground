@@ -1,4 +1,9 @@
+use std::sync::Arc;
+
+use tokio::sync::Mutex;
+
 use crate::auth::AuthClient;
+use crate::terminal::TerminalManager;
 use crate::websocket::WebSocketClient;
 
 /// Application state
@@ -6,6 +11,7 @@ pub struct AppState {
     pub host: String,
     pub username: String,
     pub auth_client: AuthClient,
+    pub term: Arc<Mutex<TerminalManager>>,
     pub ws_client: Option<WebSocketClient>,
 }
 
@@ -15,6 +21,7 @@ impl AppState {
             host,
             username,
             auth_client: client,
+            term: Arc::new(Mutex::new(TerminalManager::new())),
             ws_client: None,
         }
     }
@@ -29,13 +36,12 @@ impl AppState {
         let user_short = self.username.split('@').next().unwrap_or(&self.username);
 
         format!(
-            "[{}@{}{}] > ",
+            "[{}@{}] > ",
             user_short,
-            host_short,
             if let Some(client) = &self.ws_client {
-                format!(":{}", &client.conversation_id().to_string()[..8])
+                client.conversation_id().to_string()[..8].to_string()
             } else {
-                String::new()
+                host_short.to_string()
             }
         )
     }

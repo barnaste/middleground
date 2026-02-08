@@ -5,14 +5,14 @@ use colored::Colorize;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::{RwLock, mpsc};
+use tokio::sync::{Mutex, RwLock, mpsc};
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{Message, client::IntoClientRequest, protocol::CloseFrame},
 };
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::{state::AppState, terminal::TerminalManager};
 
 // ========================== Type Aliases ==========================
 
@@ -89,13 +89,20 @@ enum DisplayCommand {
 
 // ========================== WebSocket Client ==========================
 
+/// WebSocket client.
+///
+/// Note that this is a client for a specific websocket connection.
 pub struct WebSocketClient {
     conversation_id: Uuid,
     tx: mpsc::UnboundedSender<OutgoingMessage>,
 }
 
 impl WebSocketClient {
-    pub async fn connect(state: Arc<RwLock<AppState>>, conversation_id: Uuid) -> Result<Self> {
+    pub async fn connect(
+        state: Arc<RwLock<AppState>>,
+        conversation_id: Uuid,
+        term: Arc<Mutex<TerminalManager>>,
+    ) -> Result<Self> {
         // get authorization headers
         let mut state_write = state.write().await;
         let headers = state_write.auth_client.get_authorization_header().await;
@@ -132,7 +139,7 @@ impl WebSocketClient {
         tokio::spawn(handle_outgoing(sender, message_rx, display_tx.clone()));
 
         // spawn task to handle message displaying
-        tokio::spawn(handle_display(display_rx));
+        tokio::spawn(handle_display(display_rx, term));
 
         // return a handler for future messages from the user
         Ok(Self {
@@ -186,19 +193,17 @@ async fn handle_incoming(
 ) {
     while let Some(msg) = ws_receiver.next().await {
         match msg {
-            Ok(Message::Text(text)) => {
-                match serde_json::from_str::<IncomingMessage>(&text) {
-                    Ok(msg) => {
-                        let _ = display_tx.send(DisplayCommand::Message(msg));
-                    }
-                    Err(e) => {
-                        let _ = display_tx.send(DisplayCommand::Error(format!(
-                            "Failed to parse message: {}",
-                            e
-                        )));
-                    }
+            Ok(Message::Text(text)) => match serde_json::from_str::<IncomingMessage>(&text) {
+                Ok(msg) => {
+                    let _ = display_tx.send(DisplayCommand::Message(msg));
                 }
-            }
+                Err(e) => {
+                    let _ = display_tx.send(DisplayCommand::Error(format!(
+                        "Failed to parse message: {}",
+                        e
+                    )));
+                }
+            },
 
             Ok(Message::Close(frame)) => {
                 if let Some(CloseFrame { code, reason }) = frame {
@@ -244,7 +249,7 @@ async fn handle_outgoing(
             }
             Err(e) => {
                 let _ = display_tx.send(DisplayCommand::Error(format!(
-                    "Fialed to serialize message: {}",
+                    "Failed to serialize message: {}",
                     e
                 )));
             }
@@ -252,29 +257,35 @@ async fn handle_outgoing(
     }
 
     // once we reach this point, the channel is closed, so send close frame
-    let _ = ws_sender.send(Message::Close(None)).await;
+    let _ = ws_sender.close().await;
 }
 
-// NOTE: receives data to be displayed
-// just displays it via io::stdout
-//
-// it feels kinda weird that we're doing prints here. maybe we should
-// make ws a separate module with its own directory, and have several
-// submodules with one module being display.rs?
-async fn handle_display(mut display_rx: mpsc::UnboundedReceiver<DisplayCommand>) {
+async fn handle_display(
+    mut display_rx: mpsc::UnboundedReceiver<DisplayCommand>,
+    term: Arc<Mutex<TerminalManager>>,
+) {
     while let Some(cmd) = display_rx.recv().await {
         match cmd {
             DisplayCommand::Message(msg) => {
-                display_message(msg).await;
+                display_message(msg, term.clone()).await;
             }
             DisplayCommand::Error(err) => {
-                println!("{} {}", "✗".red(), err);
+                term.lock()
+                    .await
+                    .print_message(format!("{} {}", "✗".red(), err).as_ref())
+                    .await;
             }
             DisplayCommand::Info(info) => {
-                println!("{} {}", "🛈".blue(), info);
+                term.lock()
+                    .await
+                    .print_message(format!("{} {}", "🛈".blue(), info).as_ref())
+                    .await;
             }
             DisplayCommand::Disconnected => {
-                println!("{} WebSocket connection closed", "✗".red());
+                term.lock()
+                    .await
+                    .print_message(format!("{} WebSocket connection closed", "✗".red()).as_ref())
+                    .await;
                 break;
             }
         }
@@ -298,7 +309,7 @@ fn format_timestamp(timestamp: &str) -> String {
 }
 
 /// Display an incoming message in formatted style.
-async fn display_message(msg: IncomingMessage) {
+async fn display_message(msg: IncomingMessage, term: Arc<Mutex<TerminalManager>>) {
     match msg {
         IncomingMessage::Send {
             message_id,
@@ -317,12 +328,18 @@ async fn display_message(msg: IncomingMessage) {
                 ids.push(format!("[{}{}]", "qot:".dimmed(), short_uuid(qid)));
             }
 
-            println!(
-                "{} {} {}",
-                format_timestamp(&timestamp).dimmed(),
-                ids.join(""),
-                content
-            );
+            term.lock()
+                .await
+                .print_message(
+                    format!(
+                        "{} {} {}",
+                        format_timestamp(&timestamp).dimmed(),
+                        ids.join(""),
+                        content
+                    )
+                    .as_ref(),
+                )
+                .await;
         }
 
         IncomingMessage::Edit {
@@ -332,16 +349,22 @@ async fn display_message(msg: IncomingMessage) {
             timestamp,
         } => {
             // format: timestamp [sender_id][message_id] edited: content
-            println!(
-                "{} [{}{}][{}{}] {} {}",
-                format_timestamp(&timestamp).dimmed(),
-                "usr:".dimmed(),
-                short_uuid(sender_id),
-                "msg:".dimmed(),
-                short_uuid(message_id),
-                "edited".dimmed(),
-                content
-            );
+            term.lock()
+                .await
+                .print_message(
+                    format!(
+                        "{} [{}{}][{}{}] {} {}",
+                        format_timestamp(&timestamp).dimmed(),
+                        "usr:".dimmed(),
+                        short_uuid(sender_id),
+                        "msg:".dimmed(),
+                        short_uuid(message_id),
+                        "edited".dimmed(),
+                        content
+                    )
+                    .as_ref(),
+                )
+                .await;
         }
 
         IncomingMessage::Delete {
@@ -350,15 +373,21 @@ async fn display_message(msg: IncomingMessage) {
             timestamp,
         } => {
             // format: timestamp [sender_id][message_id] == message deleted ==
-            println!(
-                "{} [{}{}][{}{}] {}",
-                format_timestamp(&timestamp).dimmed(),
-                "usr:".dimmed(),
-                short_uuid(sender_id),
-                "msg:".dimmed(),
-                short_uuid(message_id),
-                "== message deleted ==".red().dimmed()
-            );
+            term.lock()
+                .await
+                .print_message(
+                    format!(
+                        "{} [{}{}][{}{}] {}",
+                        format_timestamp(&timestamp).dimmed(),
+                        "usr:".dimmed(),
+                        short_uuid(sender_id),
+                        "msg:".dimmed(),
+                        short_uuid(message_id),
+                        "== message deleted ==".red().dimmed()
+                    )
+                    .as_ref(),
+                )
+                .await;
         }
     }
 }

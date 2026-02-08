@@ -1,6 +1,7 @@
 mod auth;
 mod shellcmd;
 mod state;
+mod terminal;
 mod websocket;
 
 use anyhow::Result;
@@ -55,7 +56,6 @@ fn show_help() {
     println!("  edit <msg_id> <msg>     Edit an owned message");
     println!("  delete <msg_id>         Delete an owned message");
     println!("  messages [limit]        Show recent messages");
-    println!();
 }
 
 async fn show_status(state: &Arc<RwLock<AppState>>) {
@@ -73,11 +73,7 @@ async fn show_status(state: &Arc<RwLock<AppState>>) {
         } else {
             "✗".red()
         },
-        state
-            .host
-            .replace("http://", "ws://")
-            .replace("https://", "wss://")
-            + "/ws",
+        state.host.replace("http", "ws") + "/ws",
     );
 
     if let Some(client) = &state.ws_client {
@@ -86,6 +82,10 @@ async fn show_status(state: &Arc<RwLock<AppState>>) {
 }
 
 async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> Result<()> {
+    // NOTE: handle_command is only ever called _after_ we have received
+    // user input, and only prompts another instruction after it completes.
+    // As a consequence, it does not need to rely on the state's terminal
+    // manager to print messages.
     match command {
         ShellCommand::Help => {
             show_help();
@@ -96,7 +96,11 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         ShellCommand::Clear => {
-            println!("\x1B[2J\x1B[1;1H")
+            println!(
+                "{}{}",
+                terminal::ansi::CLEAR_SCREEN,
+                terminal::ansi::CURSOR_HOME
+            );
         }
 
         ShellCommand::Exit => {
@@ -122,11 +126,12 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
                 );
                 return Ok(());
             }
+            let term = state_read.term.clone();
             drop(state_read);
 
             // the client should be concerned with working with ws connections, not with how the
             // application tracks its state, which is why state update is external w.r.t. connect()
-            match websocket::WebSocketClient::connect(state.clone(), channel).await {
+            match websocket::WebSocketClient::connect(state.clone(), channel, term).await {
                 Ok(client) => {
                     let mut state_write = state.write().await;
                     state_write.ws_client = Some(client);
@@ -210,7 +215,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         ShellCommand::Unknown(err) => {
             if !err.is_empty() {
                 println!("{} {}", "✗".red(), err);
-                println!("Type {} for available commands\n", "'help'".bright_yellow());
+                println!("Type {} for available commands", "'help'".bright_yellow());
             }
         }
     }
@@ -243,11 +248,15 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
 
     loop {
         let prompt = {
+            // update the terminal manager with the current prompt
             let state_read = state.read().await;
-            state_read.prompt()
+            let prompt = state_read.prompt();
+            state_read.term.lock().await.set_prompt(prompt.clone()).await;
+            prompt
         };
 
         // read the user's prompt
+        println!();
         let command = match rl.readline(&prompt) {
             Ok(line) => {
                 let _ = rl.add_history_entry(line.as_str());
@@ -263,9 +272,20 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
             }
             Err(e) => {
                 println!("{} {}", "✗".red(), e);
+                let state_read = state.read().await;
+                state_read.term.lock().await.unset_prompt().await;
                 continue;
             }
         };
+
+        // we have finished reading the user's prompt, so we should
+        // unset the terminal state; it's okay if we receive asynchronous
+        // messages now. notice that on error we skip this unset, which
+        // necessitates the call to unset in the corresponding branch above
+        {
+            let state_read = state.read().await;
+            state_read.term.lock().await.unset_prompt().await;
+        }
 
         // execute the corresponding command
         if let Err(e) = handle_command(command, state.clone()).await {
@@ -322,6 +342,8 @@ async fn main() {
     // handle log-in using OTP
     let client = perform_otp_login(&args.host, &args.username.clone().unwrap()).await;
 
+    // notice that, until this point, we did not use a terminal manager;
+    // this is okay, seeing as there was no possible asynchronous messaging
     let state = AppState::new(args.host, args.username.unwrap(), client);
     run(Arc::new(RwLock::new(state))).await.unwrap();
 }
