@@ -1,9 +1,15 @@
+//! Error types for the ws crate.
+
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use thiserror::Error;
 
+/// Unified error type for WebSocket operations.
+///
+/// Covers all posible failure scenarios in WebSocket operations with proper HTTP status code
+/// mapping.
 #[derive(Error, Debug)]
 pub enum WsError {
     #[error("Unauthorized")]
@@ -26,11 +32,17 @@ impl IntoResponse for WsError {
     fn into_response(self) -> Response {
         let status = match self {
             Self::Unauthorized => StatusCode::UNAUTHORIZED,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Database(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Redis(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::Json(_) => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::WebSocket(_) => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
         (status, self.to_string()).into_response()
     }
 }
 
+/// Convenience type alias for WebSocket operation results.
+///
+/// Shorthand for `Result<T, WsError>`.
 pub type WsResult<T> = Result<T, WsError>;

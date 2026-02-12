@@ -1,10 +1,7 @@
-//! # Auth Crate
+//! # auth - Authentication Crate using JWTs
 //!
-//! A flexible authentication library for Axum web applications, providing JWT-based
-//! authentication with with OTP (One-Time Password) support.
-//!
-//! ## Features
-//!
+//! A flexible authentication library for axum web applications, providing JWT-based
+//! authentication with with OTP (One-Time Password) support. This create features
 //! - OTP-based authentication
 //! - JWT token management (access & refresh tokens)
 //! - Flexible authentication backends (Supabase included)
