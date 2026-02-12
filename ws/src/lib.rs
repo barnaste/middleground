@@ -10,7 +10,7 @@
 //! ## Architecture
 //!
 //! ```text
-//! Client ↔ WS Handler ↔ Redis Pub/Sub ↔ WS Handler ↔ Other Client
+//! Client <-> WS Session <-> Redis Pub/Sub <-> WS Session <-> Other Client
 //!              ↓
 //!          PestgreSQL
 //! ```
