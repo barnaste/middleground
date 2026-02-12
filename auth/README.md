@@ -1,18 +1,34 @@
-# Auth
+auth
+----
 
-A flexible JWT-based authentication library for Axum web applications centred around OTP (One-Time Password) verification with modern JWKS support.
+A flexible JWT-based authentication library for axum web applications centred around OTP (One-Time Password) verification with modern JWKS support.
+This crate includes plug-and-play Supabase integration using JWKS (JSON Web Key Set) for secure token verification, and two middleware options for route protection.
+Moreover, it defines an interface for defining authenticators that connect to alternative backends.
 
-This crate provides a complete authentication solution with OTP-based passwordless login, JWT token management (access and refresh tokens), and pluggable authentication backends. It includes a production-ready Supabase integration using JWKS (JSON Web Key Set) for secure token verification, and two middleware options for route protection.
-
-## What's New: JWKS Support
-The authenticator now uses Supabase's modern JWKS endpoint for JWT verification instead of the legacy HMAC-based approach. This provides
+#### What's New: JWKS Support
+`SbAuthenticator` now uses Supabase's modern JWKS endpoint for JWT verification instead of the legacy symmetric-key approach. This update provides
 - *Better Security:* Uses public key cryptography instead of shared secrets
 - *Automatic Key Rotation:* Handles Supabase's key rotation without downtime
 - *Performance:* Caches public keys for 1 hour, reducing API calls
 - *Standards Compliance:* Follows OAuth 2.0 / OpenID Connect best practices
 
-## Quick Start
+### Installation
 
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+auth = { path = "path/to/auth" }
+```
+
+When using the Supabase backend, configure the environment variables below. Note that the legacy `SUPABASE_JWT_SECRET` is no longer required, as the `SbAuthenticator` relies on a JWKS for verification rather than a shared private key.
+
+```bash
+SUPABASE_URL=your_project_url
+SUPABASE_API_KEY=your_api_key
+```
+
+#### Quick Start
 ```rust
 use auth::{router, models::SbAuthenticator};
 use axum::Router;
@@ -33,29 +49,11 @@ async fn main() {
 }
 ```
 
-## Installation
+### Authentication Flow
 
-Add to your `Cargo.toml`:
+The crate's `router()` function provides four endpoints that handle the complete authentication lifecycle. To authenticate, users first request an OTP at `/send-otp` with their email, then verify it at `/verify-otp` to receive access and refresh tokens. These tokens can be refreshed at `/refresh` or invalidated at `/logout`.
 
-```toml
-[dependencies]
-auth = { path = "path/to/auth" }
-```
-
-When using the Supabase backend, configure the following environment variables:
-
-```bash
-SUPABASE_URL=your_project_url
-SUPABASE_API_KEY=your_api_key
-```
-
-**Note:** The legacy `SUPABASE_JWT_SECRET` is no longer required.
-
-## Authentication Flow
-
-The `router()` function provides four endpoints that handle the complete authentication lifecycle. To authenticate, users first request an OTP at `/send-otp` with their email, then verify it at `/verify-otp` to receive access and refresh tokens. These tokens can be refreshed at `/refresh` or invalidated at `/logout`.
-
-**Sending an OTP:**
+*Sending an OTP:*
 ```bash
 POST /auth/send-otp
 Content-Type: application/json
@@ -63,7 +61,7 @@ Content-Type: application/json
 {"contact": "user@example.com"}
 ```
 
-**Verifying the OTP:**
+*Verifying the OTP:*
 ```bash
 POST /auth/verify-otp
 Content-Type: application/json
@@ -78,7 +76,7 @@ Content-Type: application/json
 # }
 ```
 
-**Refreshing tokens:**
+*Refreshing tokens:*
 ```bash
 POST /auth/refresh
 Authorization: Bearer <refresh_token>
@@ -91,21 +89,21 @@ Authorization: Bearer <refresh_token>
 # }
 ```
 
-**Logging out:**
+*Logging out:*
 ```bash
 POST /auth/logout
 Authorization: Bearer <access_token>
 ```
 
-## Protecting Routes
+### Protecting Routes
 
 The crate provides two middleware options for protecting routes. 
 Standard middleware performs fast local JWT validation. 
 It is ideal for most use cases, particularly those that do not mutate state. 
-Strict middleware may provide additional guarantees, such as validating sessions are still active in the database, providing stronger security at the cost of performance. 
+Strict middleware may provide additional guarantees, such as ensuring that sessions are still active in the database, providing stronger security at the cost of performance.
 Use this for sensitive operations like administrative functions.
 
-Both middleware options validate the JWT and insert the user's UUID into request extensions, making it available to your handlers.
+Both middleware options validate the JWT and insert the user's UUID into request extensions, making it available to your axum handlers.
 
 ```rust
 use axum::{Router, routing::get, middleware, Extension};
@@ -127,15 +125,16 @@ let app = Router::new()
     ))
 ```
 
-*Notice:* The `models::SbAuthenticator` type does not support `auth_standard` protection. In order to use both protection options, please define your own type with the `Authenticator` trait.
+### Architecture
 
-## Architecture
+The crate is built around two core traits that define the authentication interface.
+`Authenticator` defines the operations an authentication backend must support: sending OTPs, verifying them, managing sessions, and validating tokens. 
+`AuthSession` represents an authenticated session containing access and refresh tokens along with expiration information.
 
-The crate is built around two core traits that define the authentication interface. `Authenticator` defines the operations an authentication backend must support: sending OTPs, verifying them, managing sessions, and validating tokens. `AuthSession` represents an authenticated session containing access and refresh tokens along with expiration information.
+The included `SbAuthenticator` implements these traits for Supabase, but you can create custom backends by implementing the same interface. 
+This trait-based design allows the library to work with any authentication provider while maintaining type safety and a consistent API.
 
-The included `SbAuthenticator` implements these traits for Supabase, but you can create custom backends by implementing the same interface. This trait-based design allows the library to work with any authentication provider while maintaining type safety and a consistent API.
-
-### Core Traits
+#### Core Traits
 
 ```rust
 #[async_trait]
@@ -158,42 +157,15 @@ pub trait AuthSession {
 }
 ```
 
-### Module Organization
+#### Module Organization
 
-The crate is organized into modules: `dto` contains request and response structures, `handlers` implements the HTTP endpoint logic, `jwt` provides token extraction and validation utilities, `middleware` contains the two authentication middleware options, and `models` defines the core traits along with the Supabase implementation.
+The crate is organized into modules: 
+- `dto` contains request and response structures;
+- `handlers` implements the HTTP endpoint logic;
+- `error` defines the crate's error type for expressing JWT-related errors;
+- `middleware` contains the two authentication middleware options; and 
+- `models` defines the core traits along with the Supabase implementation.
 
-## JWT Utilities
+### License
 
-The `jwt` module provides utilities for working with JWTs directly. You can extract tokens from Authorization headers and validate them using HMAC signature verification. The validation checks both the signature and expiration time, returning decoded claims containing the user ID and expiration timestamp.
-
-```rust
-use auth::jwt::{extract_jwt_from_headers, validate_jwt_hmac, Claims};
-
-let token = extract_jwt_from_headers(&headers)?;
-let claims: Claims = validate_jwt_hmac(&token, jwt_secret)?;
-println!("User ID: {}", claims.sub);  // UUID string
-println!("Expires at: {}", claims.exp);  // Unix timestamp
-```
-
-## Error Handling
-
-The crate uses type-safe errors throughout. The `AuthError` enum covers JWT-related errors like missing or invalid headers and invalid tokens. HTTP handlers map these to appropriate status codes: 400 for malformed requests, 401 for authentication failures, and 200 for success.
-
-```rust
-pub enum AuthError {
-    MissingAuthHeader,
-    InvalidAuthHeader,
-}
-```
-
-## Testing
-
-Run the test suite with `cargo test`. The crate includes comprehensive tests covering JWT extraction, validation with correct and incorrect secrets, expiration handling, tamper detection, and invalid format handling.
-
-## Key Dependencies
-
-The crate builds on `axum` for the web framework, `jsonwebtoken` for JWT operations, `supabase-auth` for Supabase integration, and `uuid` for user identification. All authentication operations are async using `tokio` and `async-trait`.
-
-## License
-
-See the workspace root for license information.
+Please see the workspace root for license information.

@@ -23,7 +23,7 @@ pub async fn create_message(pool: &PgPool, params: CreateMessageParams) -> Resul
     // create a new message
     let message_id: Uuid = sqlx::query_scalar!(
         r#"
-        INSERT INTO message (conversation_id, sender_id, created_at, quoted_atom)
+        INSERT INTO message (conversation_id, sender_id, created_at, quoted_id)
         VALUES ($1, $2, $3, $4)
         RETURNING id
         "#,
