@@ -46,7 +46,8 @@ pub async fn create_message(pool: &PgPool, params: CreateMessageParams) -> Resul
         params.created_at,
     )
     .execute(&mut *tx)
-    .await.inspect_err(|e| println!("{e}"))?;
+    .await
+    .inspect_err(|e| println!("{e}"))?;
 
     tx.commit().await?;
     Ok(message_id)

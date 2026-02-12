@@ -8,15 +8,13 @@ async fn extract_source_url(url: &str) -> Result<Source, Box<dyn Error>> {
 
     let client = reqwest::Client::new();
 
-    let request = client.request(reqwest::Method::GET, request_target)
+    let request = client
+        .request(reqwest::Method::GET, request_target)
         .query(&query)
         .build()
         .unwrap();
 
-    let response = client.execute(request)
-        .await?
-        .text()
-        .await?;
+    let response = client.execute(request).await?.text().await?;
 
     let website_info: WebsiteInfo = serde_json::from_str(&response)?;
     let source_info = SourceInfo::Website(website_info);
@@ -32,15 +30,13 @@ async fn extract_source_book(name: &str) -> Result<Source, Box<dyn Error>> {
 
     let client = reqwest::Client::new();
 
-    let request = client.request(reqwest::Method::GET, request_target)
+    let request = client
+        .request(reqwest::Method::GET, request_target)
         .query(&query)
         .build()
         .unwrap();
 
-    let response = client.execute(request)
-        .await?
-        .text()
-        .await?;
+    let response = client.execute(request).await?.text().await?;
 
     let book_info = serde_json::from_str(&response)?;
     let source_info = SourceInfo::Book(book_info);

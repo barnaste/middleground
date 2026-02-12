@@ -251,7 +251,12 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
             // update the terminal manager with the current prompt
             let state_read = state.read().await;
             let prompt = state_read.prompt();
-            state_read.term.lock().await.set_prompt(prompt.clone()).await;
+            state_read
+                .term
+                .lock()
+                .await
+                .set_prompt(prompt.clone())
+                .await;
             prompt
         };
 

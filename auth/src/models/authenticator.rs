@@ -31,7 +31,6 @@ pub trait AuthSession {
 /// - Backend verification: Validates against authentication server
 #[async_trait]
 pub trait Authenticator: Clone + Send + Sync + 'static {
-
     /// The error type returned by authentication operations.
     type Error: std::error::Error + Send + Sync + 'static;
 
@@ -58,7 +57,7 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     /// * `Ok(Self::Session)` with the new session if verification succeeded
     /// * `Err(Self::Error)` if verification failed
     async fn verify_otp(&self, contact: &str, token: &str) -> Result<Self::Session, Self::Error>;
-    
+
     /// Log out a user by invalidating their session.
     ///
     /// # Arguments
@@ -70,7 +69,7 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     /// token was invalid or there exists no session associated to the token
     async fn logout(&self, bearer_token: &str) -> Result<(), Self::Error>;
 
-    /// Refresh an access token using a refresh token. 
+    /// Refresh an access token using a refresh token.
     ///
     /// # Arguments
     /// * `refresh_token` - The refresh token to use for getting a new access token
@@ -100,7 +99,7 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     /// Strictly verify that an access token is valid and its session still exists.
     ///
     /// This method performs validation by checking with the authentication backend
-    /// to ensure the session is still active. This is slower but provides stronger 
+    /// to ensure the session is still active. This is slower but provides stronger
     /// guarantees that the token represents a valid, active session.
     ///
     /// Use this for sensitive operations where you need absolute certainty that
@@ -115,7 +114,7 @@ pub trait Authenticator: Clone + Send + Sync + 'static {
     ///
     /// # Performance
     ///
-    /// This method typically makes a network call to the authentication backend, 
+    /// This method typically makes a network call to the authentication backend,
     /// adding 50-200ms latency. Use sparingly for critical operations.
     async fn verify_token_strict(&self, access_token: &str) -> Result<uuid::Uuid, Self::Error>;
 }

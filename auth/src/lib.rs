@@ -29,11 +29,11 @@
 use axum::{Router, routing::post};
 
 mod dto;
-mod handlers;
 mod error;
+mod handlers;
 
-pub mod models;
 pub mod middleware;
+pub mod models;
 
 /// Creates an authentication router with the standard endpoints using the provided authenticator.
 ///

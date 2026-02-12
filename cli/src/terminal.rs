@@ -4,7 +4,10 @@
 //! and asynchronous messages, ensuring the prompt is always properly displayed and messages don't
 //! corrupt the input line.
 
-use std::{io::{self, Write}, sync::Arc};
+use std::{
+    io::{self, Write},
+    sync::Arc,
+};
 use tokio::sync::Mutex;
 
 /// ANSI escape sequences for terminal control
@@ -61,7 +64,7 @@ impl TerminalManager {
     pub async fn print_message(&self, message: &str) {
         let prompt = self.current_prompt.lock().await;
         if let Some(ref prompt) = *prompt {
-            // we should clear the prompt first, by erasing the current line 
+            // we should clear the prompt first, by erasing the current line
             // containing the prompt, then printing it after the message
             print!("{}{}", ansi::CURSOR_COL_0, ansi::CLEAR_LINE);
             println!("{}", message);

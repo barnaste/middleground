@@ -1,8 +1,8 @@
 //! HTTP handlers for authentication endpoints.
 
 use crate::dto::*;
-use crate::models::Authenticator;
 use crate::middleware;
+use crate::models::Authenticator;
 
 use axum::{
     Json,

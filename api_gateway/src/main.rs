@@ -47,19 +47,19 @@ async fn create_router() -> Router {
     let state = AppState { db_pool, redis };
 
     // NOTE: list all routes that need standard protection here
-    let standard_prot = Router::new()
-        .merge(ws::router(state))
-        .layer(axum::middleware::from_fn_with_state(
-            authenticator.clone(),
-            auth_standard::<SbAuthenticator>,
-        ));
+    let standard_prot =
+        Router::new()
+            .merge(ws::router(state))
+            .layer(axum::middleware::from_fn_with_state(
+                authenticator.clone(),
+                auth_standard::<SbAuthenticator>,
+            ));
 
     // NOTE: list all routes that need strict protection here
-    let strict_prot = Router::new()
-        .layer(axum::middleware::from_fn_with_state(
-            authenticator.clone(),
-            auth_strict::<SbAuthenticator>,
-        ));
+    let strict_prot = Router::new().layer(axum::middleware::from_fn_with_state(
+        authenticator.clone(),
+        auth_strict::<SbAuthenticator>,
+    ));
 
     // compose all service routers
     Router::new()

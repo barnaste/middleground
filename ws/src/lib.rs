@@ -25,8 +25,8 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let state = AppState {
-//!         db_pool: db::create_pool().await.unwrap(),
-//!         redis: redis::Client::open("redis://localhost:6379").unwrap(),
+//!         db_pool: todo!(),
+//!         redis: todo!(),
 //!     };
 //!
 //!     let app = Router::new()

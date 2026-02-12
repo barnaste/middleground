@@ -110,7 +110,6 @@ impl ShellCommand {
             //     let limit = parts.get(1).and_then(|s| s.parse().ok());
             //     ShellCommand::Messages(limit)
             // }
-
             _ => unknown_cmd,
         }
     }

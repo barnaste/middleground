@@ -1,9 +1,9 @@
-use uuid::Uuid;
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, de};
-use serde::de::Visitor;
-use std::fmt;
 use regex::Regex;
+use serde::de::Visitor;
+use serde::{de, Deserialize};
+use std::fmt;
+use uuid::Uuid;
 
 /// A website or book source created by a user
 #[derive(Debug)]
@@ -60,7 +60,7 @@ impl Source {
             id: Uuid::new_v4(),
             created_at: Utc::now(),
             created_by: Uuid::nil(), // TODO: fetch user uuid
-            credibility: 0.0, // TODO: implement credibility
+            credibility: 0.0,        // TODO: implement credibility
             source_info,
             notes: String::new(),
         }
@@ -71,7 +71,9 @@ impl PublicationDate {
     // Return an empty PublicationDate object
     fn nil() -> PublicationDate {
         PublicationDate {
-            year: None, month: None, day: None
+            year: None,
+            month: None,
+            day: None,
         }
     }
 
@@ -125,7 +127,7 @@ impl<'de> Deserialize<'de> for PublicationDate {
                 Ok(PublicationDate::parse_ymd_string(value))
             }
         }
-        
+
         deserializer.deserialize_string(DateVisitor)
     }
 }
@@ -139,7 +141,9 @@ mod tests {
     fn test_parse_ymd_string_ymd() {
         let input = "2005-03-14";
         let expected = PublicationDate {
-            year: Some(2005), month: Some(3), day: Some(14)
+            year: Some(2005),
+            month: Some(3),
+            day: Some(14),
         };
         let result = PublicationDate::parse_ymd_string(input);
         assert_eq!(result, expected);
@@ -149,7 +153,9 @@ mod tests {
     fn test_parse_ymd_string_ym() {
         let input = "2005-03";
         let expected = PublicationDate {
-            year: Some(2005), month: Some(3), day: None
+            year: Some(2005),
+            month: Some(3),
+            day: None,
         };
         let result = PublicationDate::parse_ymd_string(input);
         assert_eq!(result, expected);
@@ -159,7 +165,9 @@ mod tests {
     fn test_parse_ymd_string_y() {
         let input = "2005";
         let expected = PublicationDate {
-            year: Some(2005), month: None, day: None
+            year: Some(2005),
+            month: None,
+            day: None,
         };
         let result = PublicationDate::parse_ymd_string(input);
         assert_eq!(result, expected);

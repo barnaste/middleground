@@ -133,14 +133,17 @@ pub async fn auth_strict<A: Authenticator>(
         )
     })?;
 
-    let user_id = authenticator.verify_token_strict(&token).await.map_err(|e| {
-        (
-            StatusCode::UNAUTHORIZED,
-            Json(dto::ErrorResponse {
-                error: format!("Token validation failed: {}", e),
-            }),
-        )
-    })?;
+    let user_id = authenticator
+        .verify_token_strict(&token)
+        .await
+        .map_err(|e| {
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(dto::ErrorResponse {
+                    error: format!("Token validation failed: {}", e),
+                }),
+            )
+        })?;
 
     request.extensions_mut().insert(user_id);
     Ok(next.run(request).await)
