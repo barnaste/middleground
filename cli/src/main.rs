@@ -1,3 +1,27 @@
+//! # Middleground CLI
+//!
+//! A command-line interface for testing and debugging the Middleground backend.
+//! Provides authentication, WebSocket connections, and real-time messaging capabilities.
+//!
+//! ## Features
+//!
+//! - OTP-based authentication
+//! - WebSocket conversation connections
+//! - Configuration file saving preferences (e.g. username, host)
+//! - Auto-completion via TAB with inline hints
+//! - Persistent command history with arrow key navigation and reverse search
+//! - Async message display with terminal management
+//!
+//! Features will continuously be added as the backend expands.
+//!
+//! ## Usage
+//!
+//! ```bash
+//! cargo run -- --host https://localhost:8080 --username user@example.com
+//! ```
+
+// TODO: add auto-completion, inline hints, configuration file, persistent command history, ctl-r
+
 mod auth;
 mod shellcmd;
 mod state;
@@ -13,9 +37,14 @@ use state::AppState;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
-/// Backend testing and debugging CLI
+/// Command-line arguments
 #[derive(Parser, Debug)]
-#[command(version, about)]
+#[command(
+    name = "middleground-cli",
+    version,
+    about = "CLI tool for testing and debugging the Middleground backend",
+    long_about = None
+)]
 struct Cli {
     /// Backend host URL
     #[arg(short = 'H', long, default_value = "http://localhost:8080")]
@@ -32,60 +61,125 @@ struct Cli {
     /// Disable colored output
     #[arg(long)]
     no_color: bool,
+
+    /// Show config file path and exit
+    #[arg(long)]
+    show_config: bool,
 }
 
+/// Display help information for all available commands
 fn show_help() {
-    println!("{}", "Available Commands:".bright_cyan().bold());
+    println!("{}", "┌────────────────────────────────────────┐".cyan());
+    println!("{}", "│          AVAILABLE COMMANDS            │".cyan());
+    println!("{}", "└────────────────────────────────────────┘".cyan());
     println!();
 
-    println!("{}", "Global:".bright_yellow());
-    println!("  help                    Show help for all commands");
-    println!("  status                  Show connection and session status");
-    println!("  clear                   Clear screen");
-    println!("  exit/quit               Exit the CLI");
+    println!("  {}", "Global Commands".bright_yellow().bold());
+    println!("    help  {}", "Show this help message".dimmed());
+    println!(
+        "    status  {}",
+        "Show connection and session status".dimmed()
+    );
+    println!("    clear  {}", "Clear the terminal screen".dimmed());
+    println!("    exit/quit  {}", "Exit the CLI".dimmed());
     println!();
 
-    println!("{}", "WebSocket:".bright_yellow());
-    println!("  ws connect <channel>    Connect to WebSocket endpoint ");
-    println!("  ws disconnect           Disconnect from WebSocket");
+    println!("  {}", "WebSocket Commands".bright_yellow().bold());
+    println!(
+        "    ws connect <channel>  {}",
+        "Connect to a conversation channel".dimmed()
+    );
+    println!(
+        "    ws disconnect  {}",
+        "Disconnect from current channel".dimmed()
+    );
     println!();
 
-    println!("{}", "Messaging:".bright_yellow());
-    println!("  send <msg>              Send a message to current channel");
-    println!("  reply <msg_id> <msg>    Reply to a message in current channel");
-    println!("  edit <msg_id> <msg>     Edit an owned message");
-    println!("  delete <msg_id>         Delete an owned message");
-    println!("  messages [limit]        Show recent messages");
+    println!("  {}", "Messaging Commands".bright_yellow().bold());
+    println!("    send <msg>  {}", "Send a message (alias: s)".dimmed());
+    println!(
+        "    reply <msg_id> <msg>  {}",
+        "Reply to a message (alias: r)".dimmed()
+    );
+    println!(
+        "    edit <msg_id> <msg>  {}",
+        "Edit your message (alias: e)".dimmed()
+    );
+    println!(
+        "    delete <msg_id>  {}",
+        "Delete your message (alias: d)".dimmed()
+    );
+    println!();
+
+    println!("  {}", "Tips".bright_cyan().italic());
+    println!(
+        "    • Press {} for command completion",
+        "TAB".bright_yellow()
+    );
+    println!(
+        "    • Press {} to search command history",
+        "Ctrl-R".bright_yellow()
+    );
+    println!(
+        "    • Use {} to navigate history",
+        "↑/↓ arrows".bright_yellow()
+    );
+    println!("    • Commands show {} as you type", "hints".dimmed());
+    println!(
+        "    • Message IDs are shown in square brackets: {}",
+        "[msg:12345678]".dimmed()
+    );
+    println!(
+        "    • Type {} anytime to see this help",
+        "help".bright_yellow()
+    );
+    println!();
 }
 
+/// Display current connection status and session information
 async fn show_status(state: &Arc<RwLock<AppState>>) {
     let state = state.read().await;
 
-    // note that we are always connected to the backend, as we require authentication prior to
-    // entering the main REPL
-    println!("{}", "Connection Status:".bright_cyan().bold());
-    println!("  Backend:    {} {}", "✓".green(), state.host);
+    println!();
+    println!("{}", "┌────────────────────────────────────────┐".cyan());
+    println!("{}", "│           CONNECTION STATUS            │".cyan());
+    println!("{}", "└────────────────────────────────────────┘".cyan());
+    println!();
 
-    println!(
-        "  WebSocket:  {} {}",
-        if state.ws_client.is_some() {
-            "✓".green()
-        } else {
-            "✗".red()
-        },
-        state.host.replace("http", "ws") + "/ws",
-    );
+    // note that we are always connected to the backend, as we require
+    // authentication prior to entering the main REPL
+    println!("  {}", "Backend".bright_yellow().bold());
+    println!("    Status:   {} Connected", "✓".green());
+    println!("    URL:      {}", state.host.bright_blue());
+    println!("    User:     {}", state.username.bright_blue());
 
+    println!("  {}", "WebSocket".bright_yellow().bold());
     if let Some(client) = &state.ws_client {
-        println!("  Channel:    {}", client.conversation_id());
+        println!("    Status:   {} Connected", "✓".green());
+        println!(
+            "    Channel:  {}",
+            client.conversation_id().to_string().bright_blue()
+        );
+    } else {
+        println!("    Status:   {} Disconnected", "✗".red());
+        println!(
+            "    Channel:  {}",
+            "Use 'ws connect <channel>' to connect".dimmed()
+        );
     }
+    println!();
 }
 
+/// Handle a parsed shell command
+///
+/// Executes the appropriate action for each command type. Most commands are non-blocking and
+/// return quickly, with the exception of WebSocket operations.
 async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> Result<()> {
     // NOTE: handle_command is only ever called _after_ we have received
     // user input, and only prompts another instruction after it completes.
     // As a consequence, it does not need to rely on the state's terminal
     // manager to print messages.
+
     match command {
         ShellCommand::Help => {
             show_help();
@@ -112,7 +206,8 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
             }
 
             state_write.auth_client.logout().await?;
-            println!("{} Goodbye!", "✓".green());
+
+            println!("{} Logged out successfully. Goodbye!", "✓".green());
             std::process::exit(0);
         }
 
@@ -129,12 +224,19 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
             let term = state_read.term.clone();
             drop(state_read);
 
-            // the client should be concerned with working with ws connections, not with how the
-            // application tracks its state, which is why state update is external w.r.t. connect()
+            println!(
+                "{} Connecting to channel {}...",
+                "⟳".cyan(),
+                channel.to_string()[..8].bright_blue()
+            );
+
+            // the ws client should be concerned with handling ws connections, not with how the
+            // cli tracks its state, which is why state update is external w.r.t. connect()
             match websocket::WebSocketClient::connect(state.clone(), channel, term).await {
                 Ok(client) => {
                     let mut state_write = state.write().await;
                     state_write.ws_client = Some(client);
+                    println!("{} Connected successfully!", "✓".green());
                 }
                 Err(e) => println!("{} Failed to connect, {}", "✗".red(), e),
             }
@@ -148,6 +250,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
 
             if let Some(client) = client {
                 client.disconnect().await;
+                println!("{} Disconnected from channel", "✓".green());
             } else {
                 println!(
                     "{} Not connected. Use 'ws connect <channel> first",
@@ -223,30 +326,67 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
     Ok(())
 }
 
+/// Main REPL (Read-Eval-Print Loop)
+///
+/// Displays a prompt, reads user input, parses commands, and executes them.
+/// Continues until the user exits or an unrecoverable error occurs.
+///
+/// Features:
+/// - Persistent command history across sessionss
+/// - Searchable history with Ctrl-R
+/// - Auto-completion with TAB
+/// - Inline hints as you type
 async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
     // TODO: can have hints and auto-completion if desired
     use rustyline::DefaultEditor;
     use rustyline::error::ReadlineError;
 
+    println!();
     println!(
         "{}",
-        "┌─────────────────────────────────────────┐\n\
-         │  Middleground CLI v1.0.0                │\n\
-         │  Backend Testing & Debugging Tool       │\n\
-         └─────────────────────────────────────────┘"
-            .bright_cyan()
+        "╔════════════════════════════════════════╗".bright_cyan()
     );
+    println!(
+        "{}",
+        "║   Middleground CLI v1.0.0              ║".bright_cyan()
+    );
+    println!(
+        "{}",
+        "║   Backend Testing & Debugging Tool     ║".bright_cyan()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════╝".bright_cyan()
+    );
+    println!();
 
     // print entry data
     let state_read = state.read().await;
-    println!("Connected to: {}", state_read.host.bright_blue());
-    println!("User: {}", state_read.username.bright_blue());
-    println!("Type {} for available commands\n", "'help'".bright_yellow());
+    println!(
+        "  {}  {}",
+        "Backend".bright_yellow().bold(),
+        state_read.host.bright_blue()
+    );
+    println!(
+        "  {}     {}",
+        "User".bright_yellow().bold(),
+        state_read.username.bright_blue()
+    );
+    println!();
+    println!("  Type {} for available commands", "'help'".bright_yellow());
+    println!("  Press {} for auto-completion", "TAB".bright_yellow());
+    println!(
+        "  Press {} to search command history",
+        "Ctrl-R".bright_yellow()
+    );
+    println!();
     drop(state_read);
 
+    // TODO: set up readline with auto-completion and history
     let mut rl = DefaultEditor::new()?;
 
     loop {
+        // get current prompt
         let prompt = {
             // update the terminal manager with the current prompt
             let state_read = state.read().await;
@@ -260,7 +400,7 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
             prompt
         };
 
-        // read the user's prompt
+        // read user input
         println!();
         let command = match rl.readline(&prompt) {
             Ok(line) => {
@@ -268,6 +408,7 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
                 ShellCommand::parse(&line)
             }
             Err(ReadlineError::Interrupted) => {
+                // TODO: merge these and save history when you exit
                 println!("CTRL-C");
                 ShellCommand::Exit
             }
@@ -299,29 +440,44 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
     }
 }
 
+/// Perform OTP-based authentication flow
+///
+/// Sends an OTP to the user's email and prompts for the verification code.
+/// Retries automatically on failure until successful authentication.
 async fn perform_otp_login(host: &str, contact: &str) -> AuthClient {
     let mut auth_client = AuthClient::new(host);
-    println!("Sending OTP to {}", contact.blue());
 
+    println!();
+    println!("{} Sending OTP to {}", "⟳".cyan(), contact.bright_blue());
+
+    // send OTP with retry logic
     while auth_client.send_otp(contact).await.is_err() {
         println!("{} Unable to send OTP for verification.", "✗".red());
-        println!("Retrying in 60 seconds...");
-        std::thread::sleep(std::time::Duration::new(60, 0));
+        println!("  Retrying in 60 seconds...");
+        std::thread::sleep(std::time::Duration::from_secs(60));
     }
 
     println!("{} OTP Sent! Check your email.", "✓".green());
-    println!("\nEnter the 8 digit code: ");
+    println!();
 
     loop {
+        use std::io::{self, Write};
+
+        print!("Enter 8-digit code: ");
+        io::stdout().flush().unwrap();
+
         let mut otp = String::new();
-        std::io::stdin().read_line(&mut otp).unwrap();
-        println!("Verifying OTP...");
+        io::stdin().read_line(&mut otp).unwrap();
+
+        println!("{} Verifying...", "⟳".cyan());
 
         if auth_client.verify_otp(contact, otp.trim()).await.is_ok() {
-            println!("{} Verification successful!\n", "✓".green());
+            println!("{} Verification successful!", "✓".green());
+            println!();
             return auth_client;
         } else {
             println!("{} Verification failed, try again.", "✗".red());
+            println!();
         };
     }
 }
@@ -330,25 +486,38 @@ async fn perform_otp_login(host: &str, contact: &str) -> AuthClient {
 async fn main() {
     let mut args = Cli::parse();
 
+    // TODO: handle show-config flag and load config
+
+    // disable colors if requested
     if args.no_color {
         colored::control::set_override(false);
     }
 
     // acquire the user's contact if not provided
-    if args.username.is_none() {
-        println!("Email: ");
+    let username = if let Some(u) = args.username {
+        u
+    } else {
+        use std::io::{self, Write};
+
+        println!();
+        print!("Email: ");
+        io::stdout().flush().unwrap();
+
         let mut email = String::new();
-        std::io::stdin()
+        io::stdin()
             .read_line(&mut email)
-            .expect("Failed to read username.");
-        args.username = Some(email.trim().into());
-    }
+            .expect("Failed to read email");
+
+        email
+    };
 
     // handle log-in using OTP
-    let client = perform_otp_login(&args.host, &args.username.clone().unwrap()).await;
+    let client = perform_otp_login(&args.host, &username).await;
 
-    // notice that, until this point, we did not use a terminal manager;
-    // this is okay, seeing as there was no possible asynchronous messaging
-    let state = AppState::new(args.host, args.username.unwrap(), client);
-    run(Arc::new(RwLock::new(state))).await.unwrap();
+    // create application state and run main REPL
+    let state = AppState::new(args.host, username, client);
+    if let Err(e) = run(Arc::new(RwLock::new(state))).await {
+        eprintln!("{} Fatal error: {}", "✗".red(), e);
+        std::process::exit(1);
+    }
 }
