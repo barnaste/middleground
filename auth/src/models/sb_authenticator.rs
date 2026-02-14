@@ -39,16 +39,13 @@ struct JwksResponse {
 struct Jwk {
     kid: String, // key ID
     kty: String, // key type
-    alg: String, // algorithm
     #[serde(rename = "use")]
-    use_: Option<String>, // key usage
 
     // RSA-specific fields
     n: Option<String>, // RSA modulus
     e: Option<String>, // RSA exponent
 
     // EC-specific fields
-    crv: Option<String>, // curve name
     x: Option<String>,   // x coordinate
     y: Option<String>,   // y coordinate
 }
