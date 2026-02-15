@@ -8,7 +8,6 @@
 //! - OTP-based authentication
 //! - WebSocket conversation connections
 //! - Configuration file saving preferences (e.g. username, host)
-//! - Auto-completion via TAB with inline hints
 //! - Persistent command history with arrow key navigation and reverse search
 //! - Async message display with terminal management
 //!
@@ -23,6 +22,7 @@
 // TODO: add auto-completion, inline hints, configuration file, persistent command history, ctl-r
 
 mod auth;
+mod config;
 mod shellcmd;
 mod state;
 mod terminal;
@@ -36,6 +36,8 @@ use shellcmd::ShellCommand;
 use state::AppState;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+
+use crate::config::Config;
 
 /// Command-line arguments
 #[derive(Parser, Debug)]
@@ -54,13 +56,9 @@ struct Cli {
     #[arg(short, long)]
     username: Option<String>,
 
-    /// Enable verbose output
-    #[arg(short, long)]
-    verbose: bool,
-
     /// Disable colored output
     #[arg(long)]
-    no_color: bool,
+    no_color: Option<bool>,
 
     /// Show config file path and exit
     #[arg(long)]
@@ -113,10 +111,6 @@ fn show_help() {
 
     println!("  {}", "Tips".bright_cyan().italic());
     println!(
-        "    • Press {} for command completion",
-        "TAB".bright_yellow()
-    );
-    println!(
         "    • Press {} to search command history",
         "Ctrl-R".bright_yellow()
     );
@@ -124,7 +118,6 @@ fn show_help() {
         "    • Use {} to navigate history",
         "↑/↓ arrows".bright_yellow()
     );
-    println!("    • Commands show {} as you type", "hints".dimmed());
     println!(
         "    • Message IDs are shown in square brackets: {}",
         "[msg:12345678]".dimmed()
@@ -337,7 +330,6 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
 /// - Auto-completion with TAB
 /// - Inline hints as you type
 async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
-    // TODO: can have hints and auto-completion if desired
     use rustyline::DefaultEditor;
     use rustyline::error::ReadlineError;
 
@@ -374,7 +366,6 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
     );
     println!();
     println!("  Type {} for available commands", "'help'".bright_yellow());
-    println!("  Press {} for auto-completion", "TAB".bright_yellow());
     println!(
         "  Press {} to search command history",
         "Ctrl-R".bright_yellow()
@@ -484,17 +475,55 @@ async fn perform_otp_login(host: &str, contact: &str) -> AuthClient {
 
 #[tokio::main]
 async fn main() {
-    let mut args = Cli::parse();
-
-    // TODO: handle show-config flag and load config
+    let args = Cli::parse();
 
     // disable colors if requested
-    if args.no_color {
-        colored::control::set_override(false);
+    if let Some(c) = args.no_color {
+        colored::control::set_override(c);
     }
 
+    // if --show-config is toggled, we should show config file information
+    if args.show_config {
+        match Config::config_path() {
+            Ok(path) => {
+                println!("Config file location: {}", path.display());
+                if path.exists() {
+                    println!("Status: Exists");
+
+                    // try and load and display
+                    match Config::load() {
+                        Ok(config) => {
+                            println!();
+                            println!("Current configuration:");
+                            println!("  host     = {}", config.host);
+                            println!(
+                                "  username = {}",
+                                config.username.unwrap_or_else(|| "None".to_string())
+                            );
+                            println!("  no_color = {}", config.no_color);
+                        }
+                        Err(e) => {
+                            println!("{} Failed to load config: {}", "✗".red(), e);
+                        }
+                    }
+                } else {
+                    println!("Status: Not found (will use defaults)");
+                }
+            }
+
+            Err(e) => {
+                eprintln!("{} Failed to determine config path: {}", "✗".red(), e);
+                std::process::exit(1);
+            }
+        }
+    }
+
+    // load config file and merge with CLI args
+    let mut config = Config::load().unwrap_or_else(|_| Config::default());
+    config.merge_cli_args(Some(args.host), args.username, args.no_color);
+
     // acquire the user's contact if not provided
-    let username = if let Some(u) = args.username {
+    let username = if let Some(u) = config.username.clone() {
         u
     } else {
         use std::io::{self, Write};
@@ -508,14 +537,20 @@ async fn main() {
             .read_line(&mut email)
             .expect("Failed to read email");
 
+        let email = email.trim().to_string();
+        config.username = Some(email.clone());
         email
     };
 
+    if let Err(e) = config.save() {
+        eprintln!("{} Failed to save config: {}", "✗".red(), e);
+    }
+
     // handle log-in using OTP
-    let client = perform_otp_login(&args.host, &username).await;
+    let client = perform_otp_login(&config.host, &username).await;
 
     // create application state and run main REPL
-    let state = AppState::new(args.host, username, client);
+    let state = AppState::new(config.host, username, client);
     if let Err(e) = run(Arc::new(RwLock::new(state))).await {
         eprintln!("{} Fatal error: {}", "✗".red(), e);
         std::process::exit(1);
