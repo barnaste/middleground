@@ -19,8 +19,6 @@
 //! cargo run -- --host https://localhost:8080 --username user@example.com
 //! ```
 
-// TODO: add auto-completion, inline hints, configuration file, persistent command history, ctl-r
-
 mod auth;
 mod config;
 mod shellcmd;
@@ -67,6 +65,7 @@ struct Cli {
 
 /// Display help information for all available commands
 fn show_help() {
+    println!();
     println!("{}", "┌────────────────────────────────────────┐".cyan());
     println!("{}", "│          AVAILABLE COMMANDS            │".cyan());
     println!("{}", "└────────────────────────────────────────┘".cyan());
@@ -161,6 +160,53 @@ async fn show_status(state: &Arc<RwLock<AppState>>) {
         );
     }
     println!();
+}
+
+/// Display welcome message and information
+async fn show_welcome(state: &Arc<RwLock<AppState>>) {
+    println!();
+    println!(
+        "{}",
+        "╔════════════════════════════════════════╗".bright_cyan()
+    );
+    println!(
+        "{}",
+        "║   Middleground CLI v1.0.0              ║".bright_cyan()
+    );
+    println!(
+        "{}",
+        "║   Backend Testing & Debugging Tool     ║".bright_cyan()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════╝".bright_cyan()
+    );
+    println!();
+
+    // print entry data
+    let state_read = state.read().await;
+    println!(
+        "  {}  {}",
+        "Backend".bright_yellow().bold(),
+        state_read.host.bright_blue()
+    );
+    println!(
+        "  {}     {}",
+        "User".bright_yellow().bold(),
+        state_read.username.bright_blue()
+    );
+    println!();
+    println!("  Type {} for available commands", "'help'".bright_yellow());
+    println!(
+        "  Press {} to navigate history",
+        "↑/↓ arrows".bright_yellow()
+    );
+    println!(
+        "  Press {} to search command history",
+        "Ctrl-R".bright_yellow()
+    );
+    println!();
+    drop(state_read);
 }
 
 /// Handle a parsed shell command
@@ -330,51 +376,26 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
 /// - Auto-completion with TAB
 /// - Inline hints as you type
 async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
+    show_welcome(&state).await;
+
     use rustyline::DefaultEditor;
     use rustyline::error::ReadlineError;
 
-    println!();
-    println!(
-        "{}",
-        "╔════════════════════════════════════════╗".bright_cyan()
-    );
-    println!(
-        "{}",
-        "║   Middleground CLI v1.0.0              ║".bright_cyan()
-    );
-    println!(
-        "{}",
-        "║   Backend Testing & Debugging Tool     ║".bright_cyan()
-    );
-    println!(
-        "{}",
-        "╚════════════════════════════════════════╝".bright_cyan()
-    );
-    println!();
-
-    // print entry data
-    let state_read = state.read().await;
-    println!(
-        "  {}  {}",
-        "Backend".bright_yellow().bold(),
-        state_read.host.bright_blue()
-    );
-    println!(
-        "  {}     {}",
-        "User".bright_yellow().bold(),
-        state_read.username.bright_blue()
-    );
-    println!();
-    println!("  Type {} for available commands", "'help'".bright_yellow());
-    println!(
-        "  Press {} to search command history",
-        "Ctrl-R".bright_yellow()
-    );
-    println!();
-    drop(state_read);
-
-    // TODO: set up readline with auto-completion and history
     let mut rl = DefaultEditor::new()?;
+
+    // if the path to the history file does not currently exist,
+    // create it; otherwise saves may not succeed
+    let history_path = Config::history_path()?;
+    if let Some(parent) = history_path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    // if the history file already exists, then load its data
+    if history_path.exists() {
+        if let Err(e) = rl.load_history(&history_path) {
+            eprintln!("{} Failed to load command history: {}", "⚠".yellow(), e);
+        }
+    }
 
     loop {
         // get current prompt
@@ -399,7 +420,6 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
                 ShellCommand::parse(&line)
             }
             Err(ReadlineError::Interrupted) => {
-                // TODO: merge these and save history when you exit
                 println!("CTRL-C");
                 ShellCommand::Exit
             }
@@ -414,6 +434,13 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
                 continue;
             }
         };
+
+        if matches!(command, ShellCommand::Exit) {
+            // save history before handling exit
+            if let Err(e) = rl.save_history(&history_path) {
+                eprintln!("{} Failed to save command history: {}", "⚠".yellow(), e);
+            }
+        }
 
         // we have finished reading the user's prompt, so we should
         // unset the terminal state; it's okay if we receive asynchronous
@@ -484,38 +511,8 @@ async fn main() {
 
     // if --show-config is toggled, we should show config file information
     if args.show_config {
-        match Config::config_path() {
-            Ok(path) => {
-                println!("Config file location: {}", path.display());
-                if path.exists() {
-                    println!("Status: Exists");
-
-                    // try and load and display
-                    match Config::load() {
-                        Ok(config) => {
-                            println!();
-                            println!("Current configuration:");
-                            println!("  host     = {}", config.host);
-                            println!(
-                                "  username = {}",
-                                config.username.unwrap_or_else(|| "None".to_string())
-                            );
-                            println!("  no_color = {}", config.no_color);
-                        }
-                        Err(e) => {
-                            println!("{} Failed to load config: {}", "✗".red(), e);
-                        }
-                    }
-                } else {
-                    println!("Status: Not found (will use defaults)");
-                }
-            }
-
-            Err(e) => {
-                eprintln!("{} Failed to determine config path: {}", "✗".red(), e);
-                std::process::exit(1);
-            }
-        }
+        println!(); // print a line of whitespace for clarity
+        Config::display();
     }
 
     // load config file and merge with CLI args
@@ -542,8 +539,9 @@ async fn main() {
         email
     };
 
+    // save the new command line arguments provided by the user
     if let Err(e) = config.save() {
-        eprintln!("{} Failed to save config: {}", "✗".red(), e);
+        eprintln!("{} Failed to save config: {}", "⚠".yellow(), e);
     }
 
     // handle log-in using OTP
