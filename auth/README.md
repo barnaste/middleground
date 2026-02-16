@@ -169,6 +169,27 @@ The crate is organized into modules:
 - `middleware` contains the two authentication middleware options; and 
 - `models` defines the core traits along with the Supabase implementation.
 
+### Dependencies
+
+**Core functionality:**
+- `axum` (workspace) - Web framework for HTTP endpoints and middleware integration
+- `async-trait` - Trait definitions for async authentication operations
+- `supabase-auth` - Official Supabase authentication SDK for OTP and session management
+- `jsonwebtoken` (with rust_crypto features) - JWT creation, validation, and JWKS support
+
+**HTTP and serialization:**
+- `reqwest` (workspace) - HTTP client for Supabase API communication
+- `serde` / `serde_json` (workspace) - Request/response DTO serialization and JWT claims parsing
+
+**Error handling and utilities:**
+- `thiserror` (workspace) - Structured error types with automatic trait implementations
+- `tracing` - Structured logging for authentication events and errors
+
+**Async runtime and types:**
+- `tokio` (workspace) - Async runtime for HTTP requests and background tasks
+- `uuid` (workspace) - User identifier types for JWT claims and middleware extensions
+- `dotenvy` (workspace) - Environment variable loading for Supabase configuration
+
 ### License
 
 Please see the workspace root for license information.

@@ -3,12 +3,12 @@ ws
 
 A production-ready WebSocket service for real-time messaging built on axum and Redis Pub/Sub.
 
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
-
 **ws** provides complete WebSocket infrastructure for Middleground's real-time messaging system.
 It handles bidirectional communication between clients and the server, message persistence, and real-time broadcasting via Redis pub/sub.
 The architecture ensures messages are committed to the database prior to being broadcast, providing consistency guarantees.
+
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 
 ### Quick Start
 
@@ -186,6 +186,28 @@ Ensure RESP3 protocol is configured correctly in the Redis instance.
 **Database errors during message operations:** These typically indicate schema mismatches or constraint violations.
 Verify the `message` and `message_atom` tables match the expected structure.
 Look for foreign key violations in the logs if messages reference non-existent conversations or users.
+
+### Dependencies
+
+**Core functionality:**
+- `axum` (workspace, with ws features) - Web framework for WebSocket handling and HTTP upgrade
+- `futures` - Async stream utilities for WebSocket message handling
+- `tokio` (workspace) - Async runtime for concurrent read/write tasks
+
+**Data persistence and messaging:**
+- `sqlx` (workspace) - PostgreSQL database client for message persistence
+- `redis` (workspace, with tokio-comp features) - Redis client for pub/sub messaging with RESP3 support
+- `db` (path dependency) - Database abstraction layer for message operations
+- `shared` (path dependency) - Shared types and application state
+
+**Serialization and types:**
+- `serde` / `serde_json` (workspace) - JSON message protocol serialization
+- `uuid` (workspace) - Message and conversation identifier types
+- `chrono` (workspace) - Timestamp generation for server-side message ordering
+
+**Error handling and logging:**
+- `thiserror` (workspace) - Structured error types with HTTP status code mapping
+- `tracing` - Structured logging for error context and debugging
 
 ### License
 Please see the workspace root for license information.
