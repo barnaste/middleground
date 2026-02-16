@@ -1,74 +1,120 @@
-# Creating a Command-Line Tool
-The objective of this create is to act as a tool for the client to send
-messages to a channel in place of a front-end. When we introduce features
-such as sources, matchmaking, etc, we will expand this tool. Eventually,
-we will do away with this altogether using an actual front-end, besides
-usage for convenience in debugging.
+cli
+----
 
-For now, we expect the user to provide key information, such as the
-channel they connect to. As consequence, it will temporarily be possible 
-to have more than 2 users connected to a channel.
+A command-line interface for testing and debugging the Middleground backend. 
+This tool provides streamlined authentication, WebSocket connections to conversation channels, and real-time messaging interaction.
 
-## Authentication
-On launch, the tool should request the user's email, and have them
-subsequently log in. This should be done by sending a request to /send-otp
-and waiting for a code to be provided by the user, then sent to /verify-otp. 
-- On error, continue to prompt for correct OTP.
-- On success, information including user ID and refresh/access tokens
-  is retrieved.
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
+[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 
-After completion of verification, we should prompt the user for the next
-action. For now, the only possible action will be `c [conv_id]`, which
-connects the user to the conversation/channel with the given ID. This 
-should establish a web-socket connection by connecting to the /ws endpoint.
-This should require strict authentication. For now, we will simply trust
-the initial authentication.
-- The /ws endpoint is expected to, as all other services, be defined in
-  its own router, added to the main router under the `api_gateway` crate.
+### Features
+The CLI provides OTP-based email authentication. 
+Once authenticated, developers can connect to conversation channels via WebSocket and perform full messaging operations including sending, replying, editing, and deleting messages. 
+Persistent command history supports arrow key navigation and Ctrl-R reverse search for command replay. 
+Terminal management ensures asynchronous WebSocket messages display cleanly above the command prompt without corrupting user input.
 
-## Messaging
-Once the user has successfully connected, a message should be printed
-to indicate successful connection. The user has various options
-1. send messages with `s [message content]`
-2. reply to messages with `r [target ID] [message content]`
-3. edit messages with `e [target ID] [message content]`
-4. delete messages with `d [target ID]`
-5. exit with `q`
-
-For instance, the following should be a valid stream of input/output
-```
-==============
-PLEASE SIGN IN
-==============
-email: my.name@mail.ca
-otp: 314158
-== WARNING: incorrect OTP ==
-otp: 314159
-
-==============
-   WELCOME!
-==============
-> c 104
-== Connecting to Channel 104... ==
-s hello!
-        [01][10][19] hello!
-        [02][11][20] wow your so cool
-r 11 *you're 
-    [01][12][21][11] *you're
-        [02][13][22] oh oopsies
-        [02][11][23] wow you're so cool
-d 12
-            [01][12] == message deleted ==
-q
-
-> q
-==============
-   GOODBYE!
-==============
+### Quick Start
+Ensure Rust and Cargo are installed, then clone the repository.
+Run the CLI from the workspace root:
+```bash
+cargo run -p cli -- --host http://localhost:8080 --username alice@example.com
 ```
 
-Note that in the format `[id1][id2][id3][id4] message`, 
-- `id1` refers to the sender's ID
-- `id2` refers to the message's ID
-- `id3` refers to the atom's ID, if present
-- `id4` refers to the ID of the message replied to, if present
+For remote backends, adjust the host parameter:
+```bash
+cargo run -p cli --- https://api.middleground.example.com --username ...
+```
+
+The CLI initiates OTP authentication by sending an 8-digit code to your email.
+Enter the code when prompted to complete authentication.
+Sussion credentials are managed automatically with token refresh handling.
+
+After authentication, the CLI presents an interactive shell with a context-aware prompt showing your username and either the backend host (when disconnected) or the first 8 characters of the conversation ID (when connected).
+
+### Architecture
+Application state is centralized in the `state` module, maintaining the backend URL, authenticated user email, authentication client with token management, terminal manager for async message display, and optional WebSocket client. 
+This ensures consistent access to shared resources while maintaining proper ownership semantics.
+
+Authentication is encapsulated in the `auth` module, providing abstraction over the backend's authentication API. 
+The client handles OTP verification, manages access and refresh token lifecycles with automatic refresh, and maintains authenticated HTTP client state.
+
+WebSocket integration uses a concurrent three-task architecture for full-duplex communication. 
+The incoming handler receives and formats server messages, coordinating with the terminal manager for display. 
+The outgoing handler processes user commands (send, edit, delete) and transmits them with JSON serialization. 
+The display handler ensures messages appear above the prompt without corrupting user input.
+
+Terminal management enables displaying async messages during active typing. 
+The manager tracks prompt state and uses ANSI escape sequences to save the current prompt and input, clear the line for message display, and restore the prompt and partial input seamlessly.
+
+Command parsing transforms raw input into structured command enums. 
+The parser handles aliases, validates UUIDs for message and conversation identifiers, and provides clear error messages. 
+Rust's enum types provide compile-time guarantees about command structure.
+
+Configuration persistence manages user preferences in platform-appropriate locations (`~/.config/mgcli/config.toml` on Unix, `%APPDATA%\mgcli\config.toml` on Windows, `~/Library/Application Support/mgcli/config.toml` on macOS). 
+Uses Serde for TOML serialization with sensible defaults and command-line argument precedence.
+
+#### Module Organization
+This crate is organized into modules:
+- `main` serves as the entry point, coordinating authentication flow, managing the REPL command execution cycle, and handling graceful shutdown. 
+- `auth` abstracts authentication via HTTP, managing token storage and refresh. 
+- `websocket` implements the WebSocket client with the three-task concurrent architecture for message handling. 
+- `terminal` provides async message display coordination using ANSI escape sequences. 
+- `shellcmd` defines command enums and implements parsing with validation. 
+- `state` defines global application state and manages shared resource lifecycles. 
+- `config` handles configuration file management with platform-appropriate locations.
+
+### Available Commands
+
+**Global Commands:**
+- `help` - Display comprehensive command information
+- `status` - Show connection state, backend URL, authenticated user, and WebSocket status
+- `clear` - Clear the terminal screen
+- `exit` / `quit` - Disconnect WebSocket, logout, and shutdown
+
+**WebSocket Commands:**
+- `ws connect <conversation_id>` - Establish WebSocket connection to conversation channel by UUID
+- `ws disconnect` - Close active WebSocket connection
+
+**Messaging Commands:**
+- `send <message>` (alias: `s`) - Send a new message to the current conversation
+- `reply <message_id> <message>` (alias: `r`) - Reply to an existing message (creates threading)
+- `edit <message_id> <new_content>` (alias: `e`) - Modify a previously sent message (own messages only)
+- `delete <message_id>` (alias: `d`) - Remove a message (own messages only)
+
+### Configuration Management
+
+Configuration is automatically saved to platform-specific locations after first run. 
+The TOML file contains backend host URL, username (email), and color preferences. 
+View the config file location with `--show-config`. 
+Command-line arguments override saved configuration for that session, allowing easy testing against different backends or users.
+
+### Command History and Navigation
+
+Command history persists across sessions in a file alongside configuration. 
+Arrow keys navigate through history (up for previous, down for next). 
+Ctrl-R enables reverse search: type to find matching commands, continue pressing Ctrl-R to cycle through older matches, then Enter to execute. 
+This is particularly valuable for repeatedly testing message patterns or reconnecting to channels during development.
+
+### Dependencies
+
+**Core functionality:**
+- `clap` (with derive features) - Command-line argument parsing with automatic help generation
+- `tokio` (workspace) - Async runtime for concurrent operations
+- `rustyline` - Readline-like functionality with history, reverse search, and completion
+- `tokio-tungstenite` - WebSocket client with native TLS and tokio integration
+- `reqwest` (workspace) - HTTP client for authentication API with cookie jar and JSON support
+- `colored` - Terminal color output for improved readability
+
+**Serialization and data handling:**
+- `serde` / `serde_json` (workspace) - Authentication responses, WebSocket protocol, and config files
+- `uuid` (workspace) - Conversation and message identifier management
+- `toml` - Configuration file parsing and serialization
+
+**Error handling and utilities:**
+- `anyhow` - Rich error handling with context propagation
+- `dirs` - Platform-appropriate configuration directory discovery
+- `futures-util` - WebSocket stream splitting and async utilities
+
+### License
+
+Please see the workspace root for license information.
