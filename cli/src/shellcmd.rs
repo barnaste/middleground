@@ -1,45 +1,89 @@
+//! Command parser for the interactive shell.
+//!
+//! Parses user input into structured commands that can be executed by the main application loop.
+
 use uuid::Uuid;
 
-/// Command parser for interactive shell
+/// Parsed shell commands from user input.
+///
+/// Each variant represents a specific action the user can take.
 pub enum ShellCommand {
-    // global commands
+    // === Global Commands ===
+    /// Display help information
     Help,
+
+    /// Show connection status
     Status,
+
+    /// Clear the terminal screen
     Clear,
+
+    /// Exit the application
     Exit,
 
-    // websocket commands
+    // === WebSocket Commands ===
+    /// Connect to a conversation channel
     WsConnect(Uuid),
+
+    /// Disconnect from the current channel
     WsDisconnect,
 
-    // messaging commands
+    // === Messaging Commands ===
+    /// Send a new message
     Send(String),
-    Reply(Uuid, String),
-    Edit(Uuid, String),
-    Delete(Uuid),
-    // Messages(Option<usize>),
 
-    // unknown
+    /// Reply to an existing message
+    Reply(Uuid, String),
+
+    /// Edit an existing message
+    Edit(Uuid, String),
+
+    /// Delete an existing message
+    Delete(Uuid),
+
+    // Unknown or invalid command
     Unknown(String),
 }
 
 impl ShellCommand {
+    /// Parse a line of user input into a command.
+    ///
+    /// Supports whitespace-separated arguments and validates UUIDs.
+    /// Unknown commands are captured in the `Unknown` variant with an error message.
+    ///
+    /// # Arguments
+    /// * `input` - Raw user input string
+    ///
+    /// # Returns
+    ///
+    /// A parsed `ShellCommand`
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use shellcmd::ShellCommand;
+    ///
+    /// let cmd = ShellCommand::parse("send hello world");
+    /// let cmd = ShellCommand::parse("ws connect 550e8400-e29b-41b4-a716-446655440000");
+    /// ```
     pub fn parse(input: &str) -> Self {
         let parts: Vec<&str> = input.split_whitespace().collect();
+
+        if parts.is_empty() {
+            return Self::Unknown(String::new());
+        }
+
         let unknown_cmd = ShellCommand::Unknown(format!("Unknown command: '{}'", input));
         let invalid_id = |s: &str| ShellCommand::Unknown(format!("Invalid UUID format for {}", s));
 
-        if parts.is_empty() {
-            return unknown_cmd;
-        }
-
         match parts[0] {
+            // === Global Commands ===
             "help" => ShellCommand::Help,
             "status" => ShellCommand::Status,
             "clear" => ShellCommand::Clear,
             "exit" | "quit" => ShellCommand::Exit,
 
-            // WebSocket commands
+            // === WebSocket Commands ===
             "ws" => {
                 if parts.len() < 2 {
                     return unknown_cmd;
@@ -47,10 +91,10 @@ impl ShellCommand {
 
                 match parts[1] {
                     "connect" => {
-                        let unknown_ws =
-                            ShellCommand::Unknown("Usage: ws connect <channel>".to_string());
                         if parts.len() < 3 {
-                            return unknown_ws;
+                            return ShellCommand::Unknown(
+                                "Usage: ws connect <channel>".to_string(),
+                            );
                         }
 
                         match Uuid::parse_str(parts[2]) {
@@ -64,6 +108,7 @@ impl ShellCommand {
                 }
             }
 
+            // === Messaging Commands ===
             "send" | "s" => {
                 if parts.len() < 2 {
                     return ShellCommand::Unknown("Usage: send <msg>".to_string());
@@ -105,12 +150,36 @@ impl ShellCommand {
                 }
             }
 
-            // NOTE: add when messages endpoint is available!
-            // "messages" => {
-            //     let limit = parts.get(1).and_then(|s| s.parse().ok());
-            //     ShellCommand::Messages(limit)
-            // }
             _ => unknown_cmd,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_send() {
+        match ShellCommand::parse("send hello world") {
+            ShellCommand::Send(content) => assert_eq!(content, "hello world"),
+            _ => panic!("Expected Send command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_help() {
+        match ShellCommand::parse("help") {
+            ShellCommand::Help => {}
+            _ => panic!("Expected Help command"),
+        }
+    }
+
+    #[test]
+    fn test_parse_unknown() {
+        match ShellCommand::parse("invalid command") {
+            ShellCommand::Unknown(_) => {}
+            _ => panic!("Expected Unknown command"),
         }
     }
 }

@@ -101,10 +101,10 @@ impl AuthClient {
     /// # Arguments
     /// * `contact` - Email address to send the OTP to
     ///
-    /// # Errors 
+    /// # Errors
     ///
     /// Returns an error if:
-    /// * The HTTP request fails 
+    /// * The HTTP request fails
     /// * The server returns a non-success status code
     /// * The contact is invalid or not found
     pub async fn send_otp(&self, contact: &str) -> Result<()> {

@@ -22,7 +22,7 @@ pub struct AppState {
 
     /// Authentication client with token management
     pub auth_client: AuthClient,
-    
+
     /// Terminal manager for asynchronous messaging
     pub term: TerminalManager,
 

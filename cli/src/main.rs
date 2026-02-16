@@ -63,7 +63,6 @@ struct Cli {
 
 /// Display help information for all available commands
 fn show_help() {
-    // TODO: change to print to terminal manager; use vec of strings with join
     println!("{}", "┌────────────────────────────────────────┐".cyan());
     println!("{}", "│          AVAILABLE COMMANDS            │".cyan());
     println!("{}", "└────────────────────────────────────────┘".cyan());
@@ -127,7 +126,6 @@ fn show_help() {
 
 /// Display current connection status and session information
 async fn show_status(state: &AppState) {
-    // TODO: change to print to terminal manager; use vec of strings with join
     println!("{}", "┌────────────────────────────────────────┐".cyan());
     println!("{}", "│           CONNECTION STATUS            │".cyan());
     println!("{}", "└────────────────────────────────────────┘".cyan());
@@ -158,7 +156,6 @@ async fn show_status(state: &AppState) {
 
 /// Display welcome message and information
 async fn show_welcome(state: &AppState) {
-    // TODO: change to print to terminal manager; use vec of strings with join
     println!();
     println!(
         "{}",
@@ -207,7 +204,7 @@ async fn show_welcome(state: &AppState) {
 /// Executes the appropriate action for each command type. Most commands are non-blocking and
 /// return quickly, with the exception of WebSocket operations.
 async fn handle_command(command: ShellCommand, state: &mut AppState) -> Result<()> {
-    // NOTE: handle_command is only ever called _after_ we have received
+    // handle_command is only ever called _after_ we have received
     // user input, and only prompts another instruction after it completes.
     // As a consequence, it does not need to rely on the state's terminal
     // manager to print messages.
@@ -476,8 +473,6 @@ async fn perform_otp_login(host: &str, contact: &str) -> AuthClient {
 
 #[tokio::main]
 async fn main() {
-    // TODO: maybe consider defining the terminal manager from the get-go, using
-    // it to print wherever you need, and then attaching it to appstate when ready.
     let args = Cli::parse();
 
     // disable colors if requested
