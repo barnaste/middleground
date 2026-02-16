@@ -1,4 +1,4 @@
-//! Terminal utilities for managing prompt display and async output
+//! Terminal utilities for managing prompt display and async output.
 //!
 //! This module provides utilities for coordinating terminal output between the interactive REPL
 //! and asynchronous messages, ensuring the prompt is always properly displayed and messages don't
@@ -16,6 +16,8 @@ pub mod ansi {
     pub const CLEAR_LINE: &str = "\x1B[K";
     /// move cursor to column 0
     pub const CURSOR_COL_0: &str = "\r";
+    /// move cursor up one line
+    pub const CURSOR_UP: &str = "\x1B[1A";
     /// clear entire screen
     pub const CLEAR_SCREEN: &str = "\x1B[2J";
     /// move cursor to home position (top-left corner)
@@ -26,6 +28,9 @@ pub mod ansi {
 ///
 /// This manager ensures that asynchronous messages (e.g. from websockets) don't corrupt the
 /// command prompt by clearing the prompt line, printing the message, and redrawing the prompt.
+///
+/// This manager is thread-safe: if several tasks attempt to mutate or print, only one will be
+/// permitted to pass through at a time.
 #[derive(Clone)]
 pub struct TerminalManager {
     current_prompt: Arc<Mutex<Option<String>>>,
@@ -66,8 +71,14 @@ impl TerminalManager {
         if let Some(ref prompt) = *prompt {
             // we should clear the prompt first, by erasing the current line
             // containing the prompt, then printing it after the message
-            print!("{}{}", ansi::CURSOR_COL_0, ansi::CLEAR_LINE);
-            println!("{}", message);
+            print!(
+                "{}{}{}{}",
+                ansi::CURSOR_COL_0,
+                ansi::CLEAR_LINE,
+                ansi::CURSOR_UP,
+                ansi::CLEAR_LINE,
+            );
+            println!("{}\n", message);
             print!("{}", prompt);
 
             io::stdout().flush().unwrap();

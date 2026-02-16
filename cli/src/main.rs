@@ -32,8 +32,6 @@ use clap::Parser;
 use colored::Colorize;
 use shellcmd::ShellCommand;
 use state::AppState;
-use std::sync::Arc;
-use tokio::sync::RwLock;
 
 use crate::config::Config;
 
@@ -65,7 +63,7 @@ struct Cli {
 
 /// Display help information for all available commands
 fn show_help() {
-    println!();
+    // TODO: change to print to terminal manager; use vec of strings with join
     println!("{}", "┌────────────────────────────────────────┐".cyan());
     println!("{}", "│          AVAILABLE COMMANDS            │".cyan());
     println!("{}", "└────────────────────────────────────────┘".cyan());
@@ -125,14 +123,11 @@ fn show_help() {
         "    • Type {} anytime to see this help",
         "help".bright_yellow()
     );
-    println!();
 }
 
 /// Display current connection status and session information
-async fn show_status(state: &Arc<RwLock<AppState>>) {
-    let state = state.read().await;
-
-    println!();
+async fn show_status(state: &AppState) {
+    // TODO: change to print to terminal manager; use vec of strings with join
     println!("{}", "┌────────────────────────────────────────┐".cyan());
     println!("{}", "│           CONNECTION STATUS            │".cyan());
     println!("{}", "└────────────────────────────────────────┘".cyan());
@@ -159,11 +154,11 @@ async fn show_status(state: &Arc<RwLock<AppState>>) {
             "Use 'ws connect <channel>' to connect".dimmed()
         );
     }
-    println!();
 }
 
 /// Display welcome message and information
-async fn show_welcome(state: &Arc<RwLock<AppState>>) {
+async fn show_welcome(state: &AppState) {
+    // TODO: change to print to terminal manager; use vec of strings with join
     println!();
     println!(
         "{}",
@@ -184,16 +179,15 @@ async fn show_welcome(state: &Arc<RwLock<AppState>>) {
     println!();
 
     // print entry data
-    let state_read = state.read().await;
     println!(
         "  {}  {}",
         "Backend".bright_yellow().bold(),
-        state_read.host.bright_blue()
+        state.host.bright_blue()
     );
     println!(
         "  {}     {}",
         "User".bright_yellow().bold(),
-        state_read.username.bright_blue()
+        state.username.bright_blue()
     );
     println!();
     println!("  Type {} for available commands", "'help'".bright_yellow());
@@ -206,14 +200,13 @@ async fn show_welcome(state: &Arc<RwLock<AppState>>) {
         "Ctrl-R".bright_yellow()
     );
     println!();
-    drop(state_read);
 }
 
 /// Handle a parsed shell command
 ///
 /// Executes the appropriate action for each command type. Most commands are non-blocking and
 /// return quickly, with the exception of WebSocket operations.
-async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> Result<()> {
+async fn handle_command(command: ShellCommand, state: &mut AppState) -> Result<()> {
     // NOTE: handle_command is only ever called _after_ we have received
     // user input, and only prompts another instruction after it completes.
     // As a consequence, it does not need to rely on the state's terminal
@@ -225,7 +218,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         ShellCommand::Status => {
-            show_status(&state).await;
+            show_status(state).await;
         }
 
         ShellCommand::Clear => {
@@ -237,14 +230,12 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         ShellCommand::Exit => {
-            let mut state_write = state.write().await;
-
             // disconnect the WebSocket client if it's currently connected
-            if let Some(client) = state_write.ws_client.take() {
+            if let Some(client) = state.ws_client.take() {
                 client.disconnect().await;
             }
 
-            state_write.auth_client.logout().await?;
+            state.auth_client.logout().await?;
 
             println!("{} Logged out successfully. Goodbye!", "✓".green());
             std::process::exit(0);
@@ -252,16 +243,13 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
 
         ShellCommand::WsConnect(channel) => {
             // avoid connecting if you're already connected
-            let state_read = state.read().await;
-            if state_read.ws_client.is_some() {
+            if state.ws_client.is_some() {
                 println!(
                     "{} Already connected. Use 'ws disconnect' first.",
                     "✗".red()
                 );
                 return Ok(());
             }
-            let term = state_read.term.clone();
-            drop(state_read);
 
             println!(
                 "{} Connecting to channel {}...",
@@ -271,21 +259,17 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
 
             // the ws client should be concerned with handling ws connections, not with how the
             // cli tracks its state, which is why state update is external w.r.t. connect()
-            match websocket::WebSocketClient::connect(state.clone(), channel, term).await {
+            match websocket::WebSocketClient::connect(state, channel).await {
                 Ok(client) => {
-                    let mut state_write = state.write().await;
-                    state_write.ws_client = Some(client);
-                    println!("{} Connected successfully!", "✓".green());
+                    state.ws_client = Some(client);
+                    println!("{} Connected successfully!\n", "✓".green());
                 }
                 Err(e) => println!("{} Failed to connect, {}", "✗".red(), e),
             }
         }
 
         ShellCommand::WsDisconnect => {
-            let client = {
-                let mut state_write = state.write().await;
-                state_write.ws_client.take()
-            };
+            let client = state.ws_client.take();
 
             if let Some(client) = client {
                 client.disconnect().await;
@@ -299,8 +283,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         ShellCommand::Send(content) => {
-            let state_read = state.read().await;
-            if let Some(client) = &state_read.ws_client {
+            if let Some(client) = &state.ws_client {
                 if let Err(e) = client.send(content, None) {
                     println!("{} Failed to send message: {}", "✗".red(), e);
                 }
@@ -313,8 +296,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         ShellCommand::Reply(id, content) => {
-            let state_read = state.read().await;
-            if let Some(client) = &state_read.ws_client {
+            if let Some(client) = &state.ws_client {
                 if let Err(e) = client.send(content, Some(id)) {
                     println!("{} Failed to send reply: {}", "✗".red(), e);
                 }
@@ -327,8 +309,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         ShellCommand::Edit(id, content) => {
-            let state_read = state.read().await;
-            if let Some(client) = &state_read.ws_client {
+            if let Some(client) = &state.ws_client {
                 if let Err(e) = client.edit(id, content) {
                     println!("{} Failed to edit message: {}", "✗".red(), e);
                 }
@@ -341,8 +322,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
         }
 
         ShellCommand::Delete(id) => {
-            let state_read = state.read().await;
-            if let Some(client) = &state_read.ws_client {
+            if let Some(client) = &state.ws_client {
                 if let Err(e) = client.delete(id) {
                     println!("{} Failed to delete message: {}", "✗".red(), e);
                 }
@@ -375,7 +355,7 @@ async fn handle_command(command: ShellCommand, state: Arc<RwLock<AppState>>) -> 
 /// - Searchable history with Ctrl-R
 /// - Auto-completion with TAB
 /// - Inline hints as you type
-async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
+async fn run(mut state: AppState) -> Result<()> {
     show_welcome(&state).await;
 
     use rustyline::DefaultEditor;
@@ -401,14 +381,8 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
         // get current prompt
         let prompt = {
             // update the terminal manager with the current prompt
-            let state_read = state.read().await;
-            let prompt = state_read.prompt();
-            state_read
-                .term
-                .lock()
-                .await
-                .set_prompt(prompt.clone())
-                .await;
+            let prompt = state.prompt();
+            state.term.set_prompt(prompt.clone()).await;
             prompt
         };
 
@@ -429,8 +403,7 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
             }
             Err(e) => {
                 println!("{} {}", "✗".red(), e);
-                let state_read = state.read().await;
-                state_read.term.lock().await.unset_prompt().await;
+                state.term.unset_prompt().await;
                 continue;
             }
         };
@@ -446,13 +419,14 @@ async fn run(state: Arc<RwLock<AppState>>) -> Result<()> {
         // unset the terminal state; it's okay if we receive asynchronous
         // messages now. notice that on error we skip this unset, which
         // necessitates the call to unset in the corresponding branch above
-        {
-            let state_read = state.read().await;
-            state_read.term.lock().await.unset_prompt().await;
-        }
+        state.term.unset_prompt().await;
+
+        // we add an additional newline after the prompt for nicer spacing between the prompt and
+        // the output, for better visual distinction
+        println!();
 
         // execute the corresponding command
-        if let Err(e) = handle_command(command, state.clone()).await {
+        if let Err(e) = handle_command(command, &mut state).await {
             println!("{} {}", "✗".red(), e)
         }
     }
@@ -502,6 +476,8 @@ async fn perform_otp_login(host: &str, contact: &str) -> AuthClient {
 
 #[tokio::main]
 async fn main() {
+    // TODO: maybe consider defining the terminal manager from the get-go, using
+    // it to print wherever you need, and then attaching it to appstate when ready.
     let args = Cli::parse();
 
     // disable colors if requested
@@ -539,17 +515,18 @@ async fn main() {
         email
     };
 
-    // save the new command line arguments provided by the user
+    // handle log-in using OTP
+    let client = perform_otp_login(&config.host, &username).await;
+
+    // save the new command line arguments provided by the user, but only if they successfully log
+    // in first! (this way we don't accidentally save mistyped emails, for instance)
     if let Err(e) = config.save() {
         eprintln!("{} Failed to save config: {}", "⚠".yellow(), e);
     }
 
-    // handle log-in using OTP
-    let client = perform_otp_login(&config.host, &username).await;
-
     // create application state and run main REPL
     let state = AppState::new(config.host, username, client);
-    if let Err(e) = run(Arc::new(RwLock::new(state))).await {
+    if let Err(e) = run(state).await {
         eprintln!("{} Fatal error: {}", "✗".red(), e);
         std::process::exit(1);
     }

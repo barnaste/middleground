@@ -1,11 +1,8 @@
-// TODO: reorganize this; it might be worth splitting into several modules
-
 use anyhow::Result;
 use colored::Colorize;
 use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock, mpsc};
+use tokio::sync::mpsc;
 use tokio_tungstenite::{
     connect_async,
     tungstenite::{Message, client::IntoClientRequest, protocol::CloseFrame},
@@ -97,25 +94,18 @@ pub struct WebSocketClient {
     tx: mpsc::UnboundedSender<OutgoingMessage>,
 }
 
+// TODO: add comments explaining this code
 impl WebSocketClient {
-    pub async fn connect(
-        state: Arc<RwLock<AppState>>,
-        conversation_id: Uuid,
-        term: Arc<Mutex<TerminalManager>>,
-    ) -> Result<Self> {
+    pub async fn connect(state: &mut AppState, conversation_id: Uuid) -> Result<Self> {
         // get authorization headers
-        let mut state_write = state.write().await;
-        let headers = state_write.auth_client.get_authorization_header().await;
-        drop(state_write);
+        let headers = state.auth_client.get_authorization_header().await;
 
         // determine connection URL
-        let state_read = state.read().await;
-        let base_url = state_read
+        let base_url = state
             .host
             .replace("http://", "ws://")
             .replace("https://", "wss://");
         let url = format!("{}/ws?conversation_id={}", base_url, conversation_id);
-        drop(state_read);
 
         let mut request = url
             .into_client_request()
@@ -139,7 +129,7 @@ impl WebSocketClient {
         tokio::spawn(handle_outgoing(sender, message_rx, display_tx.clone()));
 
         // spawn task to handle message displaying
-        tokio::spawn(handle_display(display_rx, term));
+        tokio::spawn(handle_display(display_rx, state.term.clone()));
 
         // return a handler for future messages from the user
         Ok(Self {
@@ -185,8 +175,12 @@ impl WebSocketClient {
     }
 }
 
-// NOTE: holds the websocket sink; emits data to be displayed
-// expected to handle any intermediate data issues and convert to readable fmt
+// ========================== Handler Tasks ==========================
+
+/// Handle incoming messages from the WebSocket server.
+///
+/// Receives messages, parses them, and sends display commands to the display handler for
+/// rendering.
 async fn handle_incoming(
     mut ws_receiver: WsReadHalf,
     display_tx: mpsc::UnboundedSender<DisplayCommand>,
@@ -220,8 +214,7 @@ async fn handle_incoming(
 
             Ok(_) => {}
 
-            Err(e) => {
-                let _ = display_tx.send(DisplayCommand::Error(format!("WebSocket error: {}", e)));
+            Err(_) => {
                 let _ = display_tx.send(DisplayCommand::Disconnected);
                 break;
             }
@@ -229,8 +222,10 @@ async fn handle_incoming(
     }
 }
 
-// NOTE: receiving end of the buffer that WebSocketClient::write is connected to
-// expected to send data through the websocket sink
+/// Handle outgoing messages to the WebSocket server.
+///
+/// Receives messages from the client, serializes them, and sends them over the WebSocket
+/// connection.
 async fn handle_outgoing(
     mut ws_sender: WsWriteHalf,
     mut message_rx: mpsc::UnboundedReceiver<OutgoingMessage>,
@@ -260,31 +255,28 @@ async fn handle_outgoing(
     let _ = ws_sender.close().await;
 }
 
+/// Handle display of messages and status updates.
+///
+/// Receives display commands and renders them using the TerminalManager, which permits
+/// asynchronous message printing.
 async fn handle_display(
     mut display_rx: mpsc::UnboundedReceiver<DisplayCommand>,
-    term: Arc<Mutex<TerminalManager>>,
+    term: TerminalManager,
 ) {
     while let Some(cmd) = display_rx.recv().await {
         match cmd {
             DisplayCommand::Message(msg) => {
-                display_message(msg, term.clone()).await;
+                term.print_message(&format_message(msg)).await;
             }
             DisplayCommand::Error(err) => {
-                term.lock()
-                    .await
-                    .print_message(format!("{} {}", "✗".red(), err).as_ref())
-                    .await;
+                term.print_message(&format!("{} {}", "✗".red(), err)).await;
             }
             DisplayCommand::Info(info) => {
-                term.lock()
-                    .await
-                    .print_message(format!("{} {}", "🛈".blue(), info).as_ref())
+                term.print_message(&format!("{} {}", "🛈".blue(), info))
                     .await;
             }
             DisplayCommand::Disconnected => {
-                term.lock()
-                    .await
-                    .print_message(format!("{} WebSocket connection closed", "✗".red()).as_ref())
+                term.print_message(&format!("{} WebSocket connection closed", "✓".green()))
                     .await;
                 break;
             }
@@ -292,13 +284,16 @@ async fn handle_display(
     }
 }
 
+// ========================== Display Formatting ==========================
+
 /// Format a UUID to show only the first 8 characters.
 fn short_uuid(uuid: Uuid) -> String {
     uuid.to_string()[..8].to_string()
 }
 
-/// Format timestamp to extract the time portion.
-/// Assumes the timestamp is in RFC3339 format: "YYYY-MM-DDTHH:MM:SS.SSSZ"
+/// Format timestamp to extract HH:MM:SS portion.
+///
+/// Expects RFC3339 format: "YYYY-MM-DDTHH:MM:SS.SSSZ"
 fn format_timestamp(timestamp: &str) -> String {
     timestamp
         .split('T')
@@ -308,8 +303,16 @@ fn format_timestamp(timestamp: &str) -> String {
         .to_string()
 }
 
-/// Display an incoming message in formatted style.
-async fn display_message(msg: IncomingMessage, term: Arc<Mutex<TerminalManager>>) {
+/// Format an incoming message with styling.
+///
+/// Uses consistent color scheme:
+/// - Timestamps: dimmed
+/// - IDs: dimmed with colored prefixes
+/// - Content: normal brightness
+/// - Edits/deletes: dimmed indicators
+///
+/// Returns the formatted message as a String.
+fn format_message(msg: IncomingMessage) -> String {
     match msg {
         IncomingMessage::Send {
             message_id,
@@ -319,27 +322,17 @@ async fn display_message(msg: IncomingMessage, term: Arc<Mutex<TerminalManager>>
             timestamp,
         } => {
             // format: timestamp [sender_id][message_id][quoted_id?] content
-            let mut ids = vec![
-                format!("[{}{}]", "usr:".dimmed(), short_uuid(sender_id)),
-                format!("[{}{}]", "msg:".dimmed(), short_uuid(message_id)),
+            let mut parts = vec![
+                format_timestamp(&timestamp).dimmed().to_string(),
+                format!("[{}{}]", "usr:".cyan().dimmed(), short_uuid(sender_id)),
+                format!("[{}{}]", "msg:".blue().dimmed(), short_uuid(message_id)),
             ];
 
             if let Some(qid) = quoted_id {
-                ids.push(format!("[{}{}]", "qot:".dimmed(), short_uuid(qid)));
+                parts.push(format!("[{}{}]", "qot:".dimmed(), short_uuid(qid)));
             }
 
-            term.lock()
-                .await
-                .print_message(
-                    format!(
-                        "{} {} {}",
-                        format_timestamp(&timestamp).dimmed(),
-                        ids.join(""),
-                        content
-                    )
-                    .as_ref(),
-                )
-                .await;
+            format!("{} {}", parts.join(""), content)
         }
 
         IncomingMessage::Edit {
@@ -349,22 +342,16 @@ async fn display_message(msg: IncomingMessage, term: Arc<Mutex<TerminalManager>>
             timestamp,
         } => {
             // format: timestamp [sender_id][message_id] edited: content
-            term.lock()
-                .await
-                .print_message(
-                    format!(
-                        "{} [{}{}][{}{}] {} {}",
-                        format_timestamp(&timestamp).dimmed(),
-                        "usr:".dimmed(),
-                        short_uuid(sender_id),
-                        "msg:".dimmed(),
-                        short_uuid(message_id),
-                        "edited".dimmed(),
-                        content
-                    )
-                    .as_ref(),
-                )
-                .await;
+            format!(
+                "{} [{}{}][{}{}] {} {}",
+                format_timestamp(&timestamp).dimmed(),
+                "usr:".dimmed(),
+                short_uuid(sender_id),
+                "msg:".dimmed(),
+                short_uuid(message_id),
+                "edited".dimmed(),
+                content
+            )
         }
 
         IncomingMessage::Delete {
@@ -373,21 +360,15 @@ async fn display_message(msg: IncomingMessage, term: Arc<Mutex<TerminalManager>>
             timestamp,
         } => {
             // format: timestamp [sender_id][message_id] == message deleted ==
-            term.lock()
-                .await
-                .print_message(
-                    format!(
-                        "{} [{}{}][{}{}] {}",
-                        format_timestamp(&timestamp).dimmed(),
-                        "usr:".dimmed(),
-                        short_uuid(sender_id),
-                        "msg:".dimmed(),
-                        short_uuid(message_id),
-                        "== message deleted ==".red().dimmed()
-                    )
-                    .as_ref(),
-                )
-                .await;
+            format!(
+                "{} [{}{}][{}{}] {}",
+                format_timestamp(&timestamp).dimmed(),
+                "usr:".dimmed(),
+                short_uuid(sender_id),
+                "msg:".dimmed(),
+                short_uuid(message_id),
+                "== message deleted ==".red().dimmed()
+            )
         }
     }
 }
