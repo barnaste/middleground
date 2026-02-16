@@ -5,7 +5,7 @@ A flexible JWT-based authentication library for axum web applications centred ar
 This crate includes plug-and-play Supabase integration using JWKS (JSON Web Key Set) for secure token verification, and two middleware options for route protection.
 Moreover, it defines an interface for defining authenticators that connect to alternative backends.
 
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.87%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 
 #### What's New: JWKS Support

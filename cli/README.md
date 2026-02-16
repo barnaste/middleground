@@ -4,7 +4,7 @@ cli
 A command-line interface for testing and debugging the Middleground backend. 
 This tool provides streamlined authentication, WebSocket connections to conversation channels, and real-time messaging interaction.
 
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.87%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 
 ### Features

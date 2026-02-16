@@ -7,7 +7,7 @@ A production-ready WebSocket service for real-time messaging built on axum and R
 It handles bidirectional communication between clients and the server, message persistence, and real-time broadcasting via Redis pub/sub.
 The architecture ensures messages are committed to the database prior to being broadcast, providing consistency guarantees.
 
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
+[![Rust](https://img.shields.io/badge/rust-1.87%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
 [![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
 
 ### Quick Start
