@@ -8,7 +8,7 @@ It handles bidirectional communication between clients and the server, message p
 The architecture ensures messages are committed to the database prior to being broadcast, providing consistency guarantees.
 
 [![Rust](https://img.shields.io/badge/rust-1.87%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL-purple?style=for-the-badge)](../LICENSE)
 
 ### Quick Start
 

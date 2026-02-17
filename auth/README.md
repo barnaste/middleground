@@ -6,7 +6,7 @@ This crate includes plug-and-play Supabase integration using JWKS (JSON Web Key 
 Moreover, it defines an interface for defining authenticators that connect to alternative backends.
 
 [![Rust](https://img.shields.io/badge/rust-1.87%2B-red?logo=rust&style=for-the-badge)](https://www.rust-lang.org)
-[![License](https://img.shields.io/badge/license-MIT-green?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/license-AGPL-purple?style=for-the-badge)](../LICENSE)
 
 #### What's New: JWKS Support
 `SbAuthenticator` now uses Supabase's modern JWKS endpoint for JWT verification instead of the legacy symmetric-key approach. This update provides
