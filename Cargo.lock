@@ -112,10 +112,12 @@ dependencies = [
  "db",
  "dotenvy",
  "redis",
+ "serde",
  "shared",
  "sqlx",
  "tokio",
  "tower 0.4.13",
+ "tracing",
  "tracing-subscriber",
  "ws",
 ]

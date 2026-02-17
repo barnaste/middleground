@@ -49,13 +49,12 @@ services:
       RUST_BACKTRACE: ${RUST_BACKTRACE:-1}
     volumes:
       - ./.env:/app/.env:ro
-    # # add the following once the \healthcheck endpoint is implemented:
-    # healthcheck:
-    #   test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-    #   interval: 10s
-    #   timeout: 5s
-    #   retries: 3
-    #   start_period: 40s
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
 volumes:
   redis_data:

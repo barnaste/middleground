@@ -40,14 +40,13 @@ struct Jwk {
     kid: String, // key ID
     kty: String, // key type
     #[serde(rename = "use")]
-
     // RSA-specific fields
     n: Option<String>, // RSA modulus
     e: Option<String>, // RSA exponent
 
     // EC-specific fields
-    x: Option<String>,   // x coordinate
-    y: Option<String>,   // y coordinate
+    x: Option<String>, // x coordinate
+    y: Option<String>, // y coordinate
 }
 
 #[derive(Clone)]
@@ -219,10 +218,10 @@ impl SbAuthenticator {
         // Check cache first
         {
             let cache = self.jwks_cache.read().await;
-            if let Some(cached) = cache.as_ref() {
-                if !cached.is_expired() {
-                    return Ok(cached.keys.clone());
-                }
+            if let Some(cached) = cache.as_ref()
+                && !cached.is_expired()
+            {
+                return Ok(cached.keys.clone());
             }
         }
 

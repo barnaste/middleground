@@ -11,6 +11,10 @@ use redis::{Client as RedisClient, IntoConnectionInfo, ProtocolVersion, RedisCon
 use shared::AppState;
 use std::net::SocketAddr;
 
+use crate::health::health_check;
+
+mod health;
+
 /// Creates the main application router with all middleware and route configurations.
 ///
 /// This function composes all service routers (auth, websocket, etc.) into a single application
@@ -49,7 +53,7 @@ async fn create_router() -> Router {
     // NOTE: list all routes that need standard protection here
     let standard_prot =
         Router::new()
-            .merge(ws::router(state))
+            .merge(ws::router(state.clone()))
             .layer(axum::middleware::from_fn_with_state(
                 authenticator.clone(),
                 auth_standard::<SbAuthenticator>,
@@ -61,8 +65,13 @@ async fn create_router() -> Router {
         auth_strict::<SbAuthenticator>,
     ));
 
-    // compose all service routers
+    let health = Router::new()
+        .route("/", axum::routing::get(health_check))
+        .with_state(state.clone());
+
+    // compose all service routes
     Router::new()
+        .nest("/health", health)
         .nest("/auth", auth::router(authenticator.clone()))
         .merge(standard_prot)
         .merge(strict_prot)
@@ -100,6 +109,7 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
     println!("Server listening on {}", addr);
+    println!("  - Health check: http://{}/health", addr);
     println!("  - Auth endpoints: http://{}/auth/*", addr);
     println!("  - WebSocket endpoint: ws://{}/ws", addr);
     println!();

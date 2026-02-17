@@ -8,9 +8,11 @@ authors.workspace = true
 axum.workspace = true
 dotenvy.workspace = true
 redis.workspace = true
+serde.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
 tower.workspace = true
+tracing.workspace = true
 
 tracing-subscriber = "0.3.22"
 
