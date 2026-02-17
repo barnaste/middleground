@@ -96,7 +96,7 @@ async fn main() {
     // load .env file
     dotenvy::dotenv().expect("Unable to find .env file");
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
 
     println!("Server listening on {}", addr);

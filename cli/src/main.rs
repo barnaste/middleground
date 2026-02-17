@@ -259,7 +259,7 @@ async fn handle_command(command: ShellCommand, state: &mut AppState) -> Result<(
             match websocket::WebSocketClient::connect(state, channel).await {
                 Ok(client) => {
                     state.ws_client = Some(client);
-                    println!("{} Connected successfully!\n", "✓".green());
+                    println!("{} Connected successfully!", "✓".green());
                 }
                 Err(e) => println!("{} Failed to connect, {}", "✗".red(), e),
             }
