@@ -191,7 +191,30 @@ The backend will be available at `http://localhost:8080`
 ```bash
 cargo run -p cli -- --host http://localhost:8080 --username your@email.com
 ```
-For detailed deployment instructions, see [DEPLOY.md](DEPLOY.md).
+
+#### Configuration
+The following environment variables require configuration in step (2):
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
+| `REDIS_URL` | Redis connection string | `redis://redis:6379` |
+| `SUPABASE_URL` | Supabase project URL | `https://xyz.supabase.co` |
+| `SUPABASE_API_KEY` | Supabase API key | `eyJhbG...` |
+| `RUST_LOG` | Logging level (optional) | `info,api_gateway=debug` |
+
+The `RUST_LOG` environment variable controls the verbosity of the backend's tracing logs.
+These logs are visible in the Docker Compose output, and can be viewed after detaching with `docker compose logs -f`.
+By default, they are set to `info` level for all dependencies, and `debug` level for application crates.
+
+**Important**: When running in Docker Compose, use the service name `redis` as the hostname 
+```bash
+REDIS_URL=redis://redis:6379
+```
+For local development outside Docker, set the service name to `localhost` instead:
+```bash
+REDIS_URL=redis://localhost:6379
+```
 
 ### API Endpoints
 
@@ -232,7 +255,6 @@ For detailed deployment instructions, see [DEPLOY.md](DEPLOY.md).
 * [Authentication](auth/README.md)
 * [WebSocket Service](ws/README.md)
 * [CLI Tool](cli/README.md)
-* [Docker Deployment](DEPLOY.md)
 
 ### License
 
