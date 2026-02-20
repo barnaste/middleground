@@ -1,0 +1,65 @@
+services:
+  # Redis service for pub/sub messaging and caching
+  redis:
+    image: redis:7-alpine
+    container_name: middleground-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - middleground
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # Rust API Gateway backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: middleground-backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    networks:
+      - middleground
+    depends_on:
+      redis:
+        condition: service_healthy
+    environment:
+      # Redis connection - using service name for internal DNS resolution
+      REDIS_URL: redis://redis:6379
+      
+      # Database configuration (PostgreSQL via Supabase)
+      DATABASE_URL: ${DATABASE_URL}
+      DB_MAX_CONNECTIONS: ${DB_MAX_CONNECTIONS:-15}
+      DB_MIN_CONNECTIONS: ${DB_MIN_CONNECTIONS:-5}
+      
+      # Supabase authentication
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_API_KEY: ${SUPABASE_API_KEY}
+      
+      # Rust logging configuration for tracing visibility
+      RUST_LOG: ${RUST_LOG:-info,api_gateway=debug,ws=debug,auth=debug,db=debug}
+      RUST_BACKTRACE: ${RUST_BACKTRACE:-1}
+    volumes:
+      - ./.env:/app/.env:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  middleground:
+    driver: bridge

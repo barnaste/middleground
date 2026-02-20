@@ -7,9 +7,16 @@ authors.workspace = true
 [dependencies]
 axum.workspace = true
 dotenvy.workspace = true
+redis.workspace = true
+serde.workspace = true
 sqlx.workspace = true
 tokio.workspace = true
 tower.workspace = true
+tracing.workspace = true
+
+tracing-subscriber = "0.3.22"
 
 auth = { path = "../auth" }
 db = { path = "../db" }
+shared = { path = "../shared" }
+ws = { path = "../ws" }

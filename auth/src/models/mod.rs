@@ -3,5 +3,5 @@
 mod authenticator;
 pub mod sb_authenticator;
 
-pub use authenticator::{Authenticator, AuthSession};
+pub use authenticator::{AuthSession, Authenticator};
 pub use sb_authenticator::SbAuthenticator;

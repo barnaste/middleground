@@ -1,0 +1,22 @@
+[package]
+name = "ws"
+edition = "2024"
+version.workspace = true
+authors.workspace = true
+
+[dependencies]
+axum = { workspace = true, features = ["ws"] }
+chrono.workspace = true
+redis = { workspace = true, features = ["tokio-comp"] }
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+futures = "0.3.31"
+
+shared = { path = "../shared" }
+db = { path = "../db" }

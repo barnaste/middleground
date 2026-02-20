@@ -1,10 +1,7 @@
-//! # Auth Crate
+//! # auth - Authentication Crate using JWTs
 //!
-//! A flexible authentication library for Axum web applications, providing JWT-based
-//! authentication with with OTP (One-Time Password) support.
-//!
-//! ## Features
-//!
+//! A flexible authentication library for axum web applications, providing JWT-based
+//! authentication with with OTP (One-Time Password) support. This create features
 //! - OTP-based authentication
 //! - JWT token management (access & refresh tokens)
 //! - Flexible authentication backends (Supabase included)
@@ -32,12 +29,11 @@
 use axum::{Router, routing::post};
 
 mod dto;
-mod handlers;
-mod jwt;
 mod error;
+mod handlers;
 
-pub mod models;
 pub mod middleware;
+pub mod models;
 
 /// Creates an authentication router with the standard endpoints using the provided authenticator.
 ///

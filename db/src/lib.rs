@@ -2,7 +2,7 @@
 pub mod error;
 pub mod queries;
 
-use error::{DbError, Result};
+pub use error::{DbError, Result};
 use sqlx::postgres::PgPoolOptions;
 
 /// Creates a new PostgreSQL connection pool.

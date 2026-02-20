@@ -3,9 +3,7 @@
 use crate::models::AuthSession;
 use serde::{Deserialize, Serialize};
 
-// -----------------
-//     REQUESTS
-// -----------------
+// ========================== Requests ==========================
 
 /// Request to send OTP to a user's contact (e.g. email).
 #[derive(Deserialize)]
@@ -20,9 +18,7 @@ pub struct VerifyOtpRequest {
     pub token: String,
 }
 
-// -----------------
-//     RESPONSES
-// -----------------
+// ========================== Responses ==========================
 
 /// Authentication response containing tokens and expiration.
 #[derive(Serialize)]

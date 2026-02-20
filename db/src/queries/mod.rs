@@ -8,5 +8,6 @@
 //! - Return a `Result<T, DbError>` for error handling
 //! - Use `sqlx::query_as!` for type-safe queries where possible
 
+pub mod conversations;
+pub mod messages;
 pub mod users;
-// pub use users::*;

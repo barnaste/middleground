@@ -1,0 +1,44 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Environment files (will be mounted separately)
+.env
+.env.*
+!.env.example
+
+# Build artifacts
+target/
+**/target/
+*.log
+
+# Documentation
+*.md
+!README.md
+docs/
+LICENSE
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Docker files (except what we need)
+docker-compose.yml
+Dockerfile.*
+.dockerignore
+
+# Test files
+tests/
+**/tests/
+
+# Rust specific
+**/*.rs.bk
+Cargo.lock.bak
+
+# OS files
+Thumbs.db
